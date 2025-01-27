@@ -17,13 +17,9 @@ const value = instance.command.commandName()
 
 ```javascript
 const {
-  version: string;
-  width: number;
-  height: number;
-  margins: IMargin;
-  header?: IHeader;
-  watermark?: IWatermark;
-  data: IEditorData;
+  version: string
+  data: IEditorData
+  options: IEditorOption
 } = instance.command.getValue(options?: IGetValueOption)
 ```
 
@@ -55,6 +51,16 @@ const editorOption = await instance.command.getOptions()
 
 ```javascript
 const wordCount = await instance.command.getWordCount()
+```
+
+## getCursorPosition
+
+功能: 获取光标位置坐标
+
+用法:
+
+```javascript
+const range = instance.command.getCursorPosition()
 ```
 
 ## getRange
@@ -105,6 +111,16 @@ const rowElementList = instance.command.getRangeRow()
 
 ```javascript
 const rangeList = instance.command.getKeywordRangeList()
+```
+
+## getKeywordContext
+
+功能：获取关键词所在上下文本信息
+
+用法：
+
+```javascript
+const keywordContextList = instance.command.getKeywordContext(payload: string)
 ```
 
 ## getRangeParagraph
@@ -209,7 +225,9 @@ const groupIds = await instance.command.getGroupIds()
 const {
   value: string | null
   innerText: string | null
-} = await instance.command.getControlValue(payload: IGetControlValueOption)
+  zone: EditorZone
+  elementList?: IElement[]
+}[] = await instance.command.getControlValue(payload: IGetControlValueOption)
 ```
 
 ## getControlList
@@ -230,4 +248,69 @@ const controlList = await instance.command.getControlList()
 
 ```javascript
 const container = await instance.command.getContainer()
+```
+
+## getTitleValue
+
+功能：获取标题值
+
+用法：
+
+```javascript
+const {
+  value: string | null
+  elementList: IElement[]
+  zone: EditorZone
+}[] = await instance.command.getTitleValue(payload: IGetTitleValueOption)
+```
+
+## getPositionContextByEvent
+
+功能：获取位置上下文信息通过鼠标事件
+
+用法：
+
+```javascript
+const {
+  pageNo: number
+  element: IElement | null
+  rangeRect: RangeRect | null
+}[] = await instance.command.getPositionContextByEvent(evt: MouseEvent)
+```
+
+示例：
+
+```javascript
+instance.eventBus.on(
+  'mousemove',
+  debounce(evt => {
+    const positionContext = instance.command.getPositionContextByEvent(evt)
+    console.log(positionContext)
+  }, 200)
+)``
+```
+
+## getElementById
+
+功能：根据 id 获取元素
+
+用法：
+
+```javascript
+const elementList = await instance.command.getElementById(payload: IGetElementByIdOption)
+```
+
+## getAreaValue
+
+功能: 获取区域数据
+用法：
+
+```js
+const {
+  id?: string
+  area: IArea
+  value: IElement[]
+  startPageNo: number
+  endPageNo: number
+} = instance.command.getAreaValue(options: IGetAreaValueOption)
 ```

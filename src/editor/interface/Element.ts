@@ -5,10 +5,13 @@ import { ListStyle, ListType } from '../dataset/enum/List'
 import { RowFlex } from '../dataset/enum/Row'
 import { TitleLevel } from '../dataset/enum/Title'
 import { TableBorder } from '../dataset/enum/table/Table'
+import { IArea } from './Area'
 import { IBlock } from './Block'
 import { ICheckbox } from './Checkbox'
 import { IControl } from './Control'
+import { IRadio } from './Radio'
 import { ITextDecoration } from './Text'
+import { ITitle } from './Title'
 import { IColgroup } from './table/Colgroup'
 import { ITr } from './table/Tr'
 
@@ -16,6 +19,8 @@ export interface IElementBasic {
   id?: string
   type?: ElementType
   value: string
+  extension?: unknown
+  externalId?: string
 }
 
 export interface IElementStyle {
@@ -43,6 +48,7 @@ export interface ITitleElement {
   valueList?: IElement[]
   level?: TitleLevel
   titleId?: string
+  title?: ITitle
 }
 
 export interface IListElement {
@@ -57,6 +63,11 @@ export interface ITableAttr {
   colgroup?: IColgroup[]
   trList?: ITr[]
   borderType?: TableBorder
+  borderColor?: string
+}
+
+export interface ITableRule {
+  tableToolDisabled?: boolean
 }
 
 export interface ITableElement {
@@ -65,9 +76,10 @@ export interface ITableElement {
   tableId?: string
   conceptId?: string
   pagingId?: string // 用于区分拆分的表格同属一个源表格
+  pagingIndex?: number // 拆分的表格索引
 }
 
-export type ITable = ITableAttr & ITableElement
+export type ITable = ITableAttr & ITableRule & ITableElement
 
 export interface IHyperlinkElement {
   valueList?: IElement[]
@@ -93,6 +105,10 @@ export interface ICheckboxElement {
   checkbox?: ICheckbox
 }
 
+export interface IRadioElement {
+  radio?: IRadio
+}
+
 export interface ILaTexElement {
   laTexSVG?: string
 }
@@ -107,11 +123,18 @@ export interface IImageElement {
   imgFloatPosition?: {
     x: number
     y: number
+    pageNo?: number
   }
 }
 
 export interface IBlockElement {
   block?: IBlock
+}
+
+export interface IAreaElement {
+  valueList?: IElement[]
+  areaId?: string
+  area?: IArea
 }
 
 export type IElement = IElementBasic &
@@ -123,12 +146,14 @@ export type IElement = IElementBasic &
   ISeparator &
   IControlElement &
   ICheckboxElement &
+  IRadioElement &
   ILaTexElement &
   IDateElement &
   IImageElement &
   IBlockElement &
   ITitleElement &
-  IListElement
+  IListElement &
+  IAreaElement
 
 export interface IElementMetrics {
   width: number
@@ -162,4 +187,15 @@ export interface IElementFillRect {
   y: number
   width: number
   height: number
+}
+
+export interface IUpdateElementByIdOption {
+  id?: string
+  conceptId?: string
+  properties: Omit<Partial<IElement>, 'id'>
+}
+
+export interface IGetElementByIdOption {
+  id?: string
+  conceptId?: string
 }

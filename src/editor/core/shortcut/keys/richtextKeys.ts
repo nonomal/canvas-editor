@@ -5,7 +5,7 @@ import { isApple } from '../../../utils/ua'
 
 export const richtextKeys: IRegisterShortcut[] = [
   {
-    key: KeyMap.X_UPPERCASE,
+    key: KeyMap.X,
     ctrl: true,
     shift: true,
     callback: (command: Command) => {
@@ -89,6 +89,14 @@ export const richtextKeys: IRegisterShortcut[] = [
     mod: true,
     callback: (command: Command) => {
       command.executeRowFlex(RowFlex.ALIGNMENT)
+    }
+  },
+  {
+    key: KeyMap.J,
+    mod: true,
+    shift: true,
+    callback: (command: Command) => {
+      command.executeRowFlex(RowFlex.JUSTIFY)
     }
   }
 ]

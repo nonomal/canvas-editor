@@ -1,4 +1,6 @@
 import { ElementType } from '../../../../dataset/enum/Element'
+import { DeepRequired } from '../../../../interface/Common'
+import { IEditorOption } from '../../../../interface/Editor'
 import { IElement, IElementPosition } from '../../../../interface/Element'
 import { formatElementContext } from '../../../../utils/element'
 import { RangeManager } from '../../../range/RangeManager'
@@ -9,35 +11,14 @@ export class DateParticle {
   private draw: Draw
   private range: RangeManager
   private datePicker: DatePicker
+  private options: DeepRequired<IEditorOption>
 
   constructor(draw: Draw) {
     this.draw = draw
+    this.options = draw.getOptions()
     this.range = draw.getRange()
-    const i18n = draw.getI18n()
-    const t = i18n.t.bind(i18n)
-    this.datePicker = new DatePicker({
-      mountDom: draw.getContainer(),
-      onSubmit: this._setValue.bind(this),
-      getLang: () => ({
-        now: t('datePicker.now'),
-        confirm: t('datePicker.confirm'),
-        return: t('datePicker.return'),
-        timeSelect: t('datePicker.timeSelect'),
-        weeks: {
-          sun: t('datePicker.weeks.sun'),
-          mon: t('datePicker.weeks.mon'),
-          tue: t('datePicker.weeks.tue'),
-          wed: t('datePicker.weeks.wed'),
-          thu: t('datePicker.weeks.thu'),
-          fri: t('datePicker.weeks.fri'),
-          sat: t('datePicker.weeks.sat')
-        },
-        year: t('datePicker.year'),
-        month: t('datePicker.month'),
-        hour: t('datePicker.hour'),
-        minute: t('datePicker.minute'),
-        second: t('datePicker.second')
-      })
+    this.datePicker = new DatePicker(draw, {
+      onSubmit: this._setValue.bind(this)
     })
   }
 
@@ -66,7 +47,9 @@ export class DateParticle {
         }
       ]
     }
-    formatElementContext(elementList, [dateElement], leftIndex)
+    formatElementContext(elementList, [dateElement], leftIndex, {
+      editorOptions: this.options
+    })
     this.draw.insertElementList([dateElement])
   }
 
@@ -80,7 +63,7 @@ export class DateParticle {
     if (startElement.type !== ElementType.DATE) return null
     // 向左查找
     let preIndex = startIndex
-    while (preIndex > 0) {
+    while (preIndex >= 0) {
       const preElement = elementList[preIndex]
       if (preElement.dateId !== startElement.dateId) {
         leftIndex = preIndex
@@ -111,9 +94,6 @@ export class DateParticle {
   }
 
   public renderDatePicker(element: IElement, position: IElementPosition) {
-    const height = this.draw.getHeight()
-    const pageGap = this.draw.getPageGap()
-    const startTop = this.draw.getPageNo() * (height + pageGap)
     const elementList = this.draw.getElementList()
     const range = this.getDateElementRange()
     const value = range
@@ -124,9 +104,8 @@ export class DateParticle {
       : ''
     this.datePicker.render({
       value,
-      element,
       position,
-      startTop
+      dateFormat: element.dateFormat
     })
   }
 }

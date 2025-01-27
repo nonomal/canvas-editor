@@ -70,7 +70,11 @@ Feature: Exit format brush
 
 ## Tab
 
-Feature: Increase indent
+Feature: Increase indent/Move next control
+
+## Shift + Tab
+
+Feature: Move previous control
 
 ## Ctrl/Cmd + Z
 
@@ -131,6 +135,10 @@ Feature: Line right
 ## Ctrl/Cmd + J
 
 Feature: Both sides are aligned
+
+## Ctrl/Cmd + Shift + J
+
+Feature: Line justify
 
 ## Ctrl + Shift + X
 

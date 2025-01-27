@@ -17,13 +17,9 @@ Usage:
 
 ```javascript
 const {
-  version: string;
-  width: number;
-  height: number;
-  margins: IMargin;
-  header?: IHeader;
-  watermark?: IWatermark;
-  data: IEditorData;
+  version: string
+  data: IEditorData
+  options: IEditorOption
 } = instance.command.getValue(options?: IGetValueOption)
 ```
 
@@ -55,6 +51,16 @@ Usage:
 
 ```javascript
 const wordCount = await instance.command.getWordCount()
+```
+
+## getCursorPosition
+
+Feature: Get cursor position with coordinates
+
+Usage:
+
+```javascript
+const range = instance.command.getCursorPosition()
 ```
 
 ## getRange
@@ -105,6 +111,16 @@ Usage:
 
 ```javascript
 const rangeList = instance.command.getKeywordRangeList()
+```
+
+## getKeywordContext
+
+Feature: Get context list by keyword
+
+Usage:
+
+```javascript
+const keywordContextList = instance.command.getKeywordContext(payload: string)
 ```
 
 ## getRangeParagraph
@@ -209,6 +225,8 @@ Usage:
 const {
   value: string | null
   innerText: string | null
+  zone: EditorZone
+  elementList?: IElement[]
 } = await instance.command.getControlValue(payload: IGetControlValueOption)
 ```
 
@@ -230,4 +248,70 @@ Usage:
 
 ```javascript
 const container = await instance.command.getContainer()
+```
+
+## getTitleValue
+
+Feature: Get title value
+
+Usage:
+
+```javascript
+const {
+  value: string | null
+  elementList: IElement[]
+  zone: EditorZone
+}[] = await instance.command.getTitleValue(payload: IGetTitleValueOption)
+```
+
+## getPositionContextByEvent
+
+Feature: Get position context by mouse event
+
+Usage:
+
+```javascript
+const {
+  pageNo: number
+  element: IElement | null
+  rangeRect: RangeRect | null
+}[] = await instance.command.getPositionContextByEvent(evt: MouseEvent)
+```
+
+demo:
+
+```javascript
+instance.eventBus.on(
+  'mousemove',
+  debounce(evt => {
+    const positionContext = instance.command.getPositionContextByEvent(evt)
+    console.log(positionContext)
+  }, 200)
+)``
+```
+
+## getElementById
+
+Feature: Get element list by id
+
+Usage:
+
+```javascript
+const elementList = await instance.command.getElementById(payload: IGetElementByIdOption)
+```
+
+## getAreaValue
+
+Feature: Get area value
+
+Usage:
+
+```javascript
+const {
+  id?: string
+  area: IArea
+  value: IElement[]
+  startPageNo: number
+  endPageNo: number
+} = instance.command.getAreaValue(options: IGetAreaValueOption)
 ```

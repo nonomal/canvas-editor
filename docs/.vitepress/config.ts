@@ -21,6 +21,10 @@ export default defineConfig({
       {
         text: 'Demo',
         link: 'https://hufe.club/canvas-editor'
+      },
+      {
+        text: '官方插件',
+        link: '/guide/plugin-internal.html'
       }
     ],
     sidebar: [
@@ -67,11 +71,17 @@ export default defineConfig({
       },
       {
         text: 'API',
-        items: [{ text: '全局API', link: '/guide/api' }]
+        items: [
+          { text: '实例API', link: '/guide/api-instance' },
+          { text: '通用API', link: '/guide/api-common' }
+        ]
       },
       {
         text: '插件',
-        items: [{ text: '自定义插件', link: '/guide/plugin' }]
+        items: [
+          { text: '自定义插件', link: '/guide/plugin-custom' },
+          { text: '官方插件', link: '/guide/plugin-internal' }
+        ]
       }
     ],
     socialLinks: [
@@ -104,6 +114,10 @@ export default defineConfig({
           {
             text: 'Demo',
             link: 'https://hufe.club/canvas-editor'
+          },
+          {
+            text: 'Official plugin',
+            link: '/en/guide/plugin-internal.html'
           }
         ],
         sidebar: [
@@ -150,11 +164,17 @@ export default defineConfig({
           },
           {
             text: 'Api',
-            items: [{ text: 'api', link: '/en/guide/api' }]
+            items: [
+              { text: 'instance', link: '/en/guide/api-instance' },
+              { text: 'common', link: '/en/guide/api-common' }
+            ]
           },
           {
             text: 'Plugin',
-            items: [{ text: 'plugin', link: '/en/guide/plugin' }]
+            items: [
+              { text: 'custom', link: '/en/guide/plugin-custom' },
+              { text: 'official', link: '/en/guide/plugin-internal' }
+            ]
           }
         ]
       }

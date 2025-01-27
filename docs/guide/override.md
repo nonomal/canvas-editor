@@ -6,7 +6,14 @@
 import Editor from "@hufe921/canvas-editor"
 
 const instance = new Editor(container, <IElement[]>data, options)
-instance.override.overrideFunction = ()=>{}
+
+instance.override.overrideFunction = () => unknown | IOverrideResult
+```
+
+```typescript
+interface IOverrideResult {
+  preventDefault?: boolean // 阻止执行内部默认方法。默认阻止
+}
 ```
 
 ## paste
@@ -16,7 +23,7 @@ instance.override.overrideFunction = ()=>{}
 用法：
 
 ```javascript
-instance.override.paste = (evt?: ClipboardEvent) => void
+instance.override.paste = (evt?: ClipboardEvent) => unknown | IOverrideResult
 ```
 
 ## copy
@@ -26,5 +33,15 @@ instance.override.paste = (evt?: ClipboardEvent) => void
 用法：
 
 ```javascript
-instance.override.copy = () => void
+instance.override.copy = () => unknown | IOverrideResult
+```
+
+## drop
+
+功能：重写拖放方法
+
+用法：
+
+```javascript
+instance.override.drop = (evt: DragEvent) => unknown | IOverrideResult
 ```

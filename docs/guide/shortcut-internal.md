@@ -70,7 +70,11 @@
 
 ## Tab
 
-功能：增加缩进
+功能：增加缩进/移动到下一个控件
+
+## Shift + Tab
+
+功能：移动到上一个控件
 
 ## Ctrl/Cmd + Z
 
@@ -131,6 +135,10 @@
 ## Ctrl/Cmd + J
 
 功能：两端对齐
+
+## Ctrl/Cmd + Shift + J
+
+功能：分散对齐
 
 ## Ctrl + Shift + X
 

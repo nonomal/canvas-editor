@@ -1,5 +1,6 @@
 import { ElementType, IElement, TableBorder } from '../../../..'
 import { TdBorder, TdSlash } from '../../../../dataset/enum/table/Table'
+import { DeepRequired } from '../../../../interface/Common'
 import { IEditorOption } from '../../../../interface/Editor'
 import { ITd } from '../../../../interface/table/Td'
 import { ITr } from '../../../../interface/table/Tr'
@@ -19,7 +20,7 @@ interface IDrawTableBorderOption {
 export class TableParticle {
   private draw: Draw
   private range: RangeManager
-  private options: Required<IEditorOption>
+  private options: DeepRequired<IEditorOption>
 
   constructor(draw: Draw) {
     this.draw = draw
@@ -148,19 +149,29 @@ export class TableParticle {
     startX: number,
     startY: number
   ) {
-    const { colgroup, trList, borderType } = element
+    const { colgroup, trList, borderType, borderColor } = element
     if (!colgroup || !trList) return
-    const { scale } = this.options
+    const {
+      scale,
+      table: { defaultBorderColor }
+    } = this.options
     const tableWidth = element.width! * scale
     const tableHeight = element.height! * scale
     // 无边框
     const isEmptyBorderType = borderType === TableBorder.EMPTY
     // 仅外边框
     const isExternalBorderType = borderType === TableBorder.EXTERNAL
+    // 内边框
+    const isInternalBorderType = borderType === TableBorder.INTERNAL
     ctx.save()
+    // 虚线
+    if (borderType === TableBorder.DASH) {
+      ctx.setLineDash([3, 3])
+    }
     ctx.lineWidth = scale
+    ctx.strokeStyle = borderColor || defaultBorderColor
     // 渲染边框
-    if (!isEmptyBorderType) {
+    if (!isEmptyBorderType && !isInternalBorderType) {
       this._drawOuterBorder({
         ctx,
         startX,
@@ -216,9 +227,22 @@ export class TableParticle {
         }
         // 表格线
         if (!isEmptyBorderType && !isExternalBorderType) {
-          ctx.moveTo(x, y)
-          ctx.lineTo(x, y + height)
-          ctx.lineTo(x - width, y + height)
+          // 右边框
+          if (
+            !isInternalBorderType ||
+            td.colIndex! + td.colspan < colgroup.length
+          ) {
+            ctx.moveTo(x, y)
+            ctx.lineTo(x, y + height)
+          }
+          // 下边框
+          if (
+            !isInternalBorderType ||
+            td.rowIndex! + td.rowspan < trList.length
+          ) {
+            ctx.moveTo(x, y + height)
+            ctx.lineTo(x - width, y + height)
+          }
           ctx.stroke()
         }
         ctx.translate(-0.5, -0.5)
@@ -289,11 +313,26 @@ export class TableParticle {
     return data
   }
 
+  public getTdListByRowIndex(trList: ITr[], rowIndex: number) {
+    const data: ITd[] = []
+    for (let r = 0; r < trList.length; r++) {
+      const tdList = trList[r].tdList
+      for (let d = 0; d < tdList.length; d++) {
+        const td = tdList[d]
+        const min = td.rowIndex!
+        const max = min + td.rowspan - 1
+        if (rowIndex >= min && rowIndex <= max) {
+          data.push(td)
+        }
+      }
+    }
+    return data
+  }
+
   public computeRowColInfo(element: IElement) {
     const { colgroup, trList } = element
     if (!colgroup || !trList) return
-    let x = 0
-    let y = 0
+    let preX = 0
     for (let t = 0; t < trList.length; t++) {
       const tr = trList[t]
       // 表格最后一行
@@ -320,7 +359,7 @@ export class TableParticle {
               for (let preC = 0; preC < c; preC++) {
                 preColWidth += colgroup[preC].width
               }
-              x = preColWidth
+              preX = preColWidth
               break
             }
           }
@@ -360,18 +399,34 @@ export class TableParticle {
         td.isLastColTd = isLastColTd
         td.isLastTd = isLastTd
         // 修改当前格clientBox
-        td.x = x
-        td.y = y
+        td.x = preX
+        // 之前行相同列的高度
+        let preY = 0
+        for (let preR = 0; preR < t; preR++) {
+          const preTdList = trList[preR].tdList
+          for (let preD = 0; preD < preTdList.length; preD++) {
+            const td = preTdList[preD]
+            if (
+              colIndex >= td.colIndex! &&
+              colIndex < td.colIndex! + td.colspan
+            ) {
+              preY += td.height!
+              break
+            }
+          }
+        }
+        td.y = preY
         td.width = width
         td.height = height
         td.rowIndex = t
         td.colIndex = colIndex
+        td.trIndex = t
+        td.tdIndex = d
         // 当前列x轴累加
-        x += width
+        preX += width
         // 一行中的最后td
         if (isLastRowTd && !isLastTd) {
-          x = 0
-          y += rowMinHeight
+          preX = 0
         }
       }
     }

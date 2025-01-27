@@ -1,11 +1,19 @@
 import { NBSP, WRAP, ZERO } from '../../dataset/constant/Common'
-import { EDITOR_ELEMENT_STYLE_ATTR } from '../../dataset/constant/Element'
-import { titleSizeMapping } from '../../dataset/constant/Title'
+import {
+  AREA_CONTEXT_ATTR,
+  EDITOR_ELEMENT_STYLE_ATTR,
+  EDITOR_ROW_ATTR,
+  LIST_CONTEXT_ATTR,
+  TABLE_CONTEXT_ATTR
+} from '../../dataset/constant/Element'
+import {
+  titleOrderNumberMapping,
+  titleSizeMapping
+} from '../../dataset/constant/Title'
 import { defaultWatermarkOption } from '../../dataset/constant/Watermark'
-import { ImageDisplay } from '../../dataset/enum/Common'
+import { ImageDisplay, LocationPosition } from '../../dataset/enum/Common'
 import { ControlComponent } from '../../dataset/enum/Control'
 import {
-  EditorContext,
   EditorMode,
   EditorZone,
   PageMode,
@@ -14,6 +22,7 @@ import {
 import { ElementType } from '../../dataset/enum/Element'
 import { ElementStyleKey } from '../../dataset/enum/ElementStyle'
 import { ListStyle, ListType } from '../../dataset/enum/List'
+import { MoveDirection } from '../../dataset/enum/Observer'
 import { RowFlex } from '../../dataset/enum/Row'
 import { TableBorder, TdBorder, TdSlash } from '../../dataset/enum/table/Table'
 import { TitleLevel } from '../../dataset/enum/Title'
@@ -23,6 +32,8 @@ import { DeepRequired } from '../../interface/Common'
 import {
   IGetControlValueOption,
   IGetControlValueResult,
+  ILocationControlOption,
+  IRemoveControlOption,
   ISetControlExtensionOption,
   ISetControlHighlightOption,
   ISetControlProperties,
@@ -42,18 +53,40 @@ import {
   IEditorHTML,
   IEditorOption,
   IEditorResult,
-  IEditorText
+  IEditorText,
+  IFocusOption,
+  ISetValueOption,
+  IUpdateOption
 } from '../../interface/Editor'
-import { IElement, IElementStyle } from '../../interface/Element'
-import { IPasteOption } from '../../interface/Event'
+import {
+  IElement,
+  IElementPosition,
+  IElementStyle,
+  IGetElementByIdOption,
+  IUpdateElementByIdOption
+} from '../../interface/Element'
+import {
+  ICopyOption,
+  IPasteOption,
+  IPositionContextByEvent
+} from '../../interface/Event'
 import { IMargin } from '../../interface/Margin'
+import { ILocationPosition } from '../../interface/Position'
 import { IRange, RangeContext, RangeRect } from '../../interface/Range'
-import { IColgroup } from '../../interface/table/Colgroup'
-import { ITd } from '../../interface/table/Td'
-import { ITr } from '../../interface/table/Tr'
+import { IReplaceOption, ISearchResultContext } from '../../interface/Search'
 import { ITextDecoration } from '../../interface/Text'
+import {
+  IGetTitleValueOption,
+  IGetTitleValueResult
+} from '../../interface/Title'
 import { IWatermark } from '../../interface/Watermark'
-import { deepClone, downloadFile, getUUID, isObjectEqual } from '../../utils'
+import {
+  cloneProperty,
+  deepClone,
+  downloadFile,
+  getUUID,
+  isObjectEqual
+} from '../../utils'
 import {
   createDomFromElementList,
   formatElementContext,
@@ -62,13 +95,15 @@ import {
   pickElementAttr,
   getElementListByHTML,
   getTextFromElementList,
-  zipElementList
+  zipElementList,
+  getAnchorElement
 } from '../../utils/element'
+import { mergeOption } from '../../utils/option'
 import { printImageBase64 } from '../../utils/print'
 import { Control } from '../draw/control/Control'
 import { Draw } from '../draw/Draw'
 import { INavigateInfo, Search } from '../draw/interactive/Search'
-import { TableTool } from '../draw/particle/table/TableTool'
+import { TableOperate } from '../draw/particle/table/TableOperate'
 import { CanvasEvent } from '../event/CanvasEvent'
 import { pasteByApi } from '../event/handlers/paste'
 import { HistoryManager } from '../history/HistoryManager'
@@ -76,6 +111,14 @@ import { I18n } from '../i18n/I18n'
 import { Position } from '../position/Position'
 import { RangeManager } from '../range/RangeManager'
 import { WorkerManager } from '../worker/WorkerManager'
+import { Zone } from '../zone/Zone'
+import {
+  IGetAreaValueOption,
+  IGetAreaValueResult,
+  IInsertAreaOption,
+  ISetAreaPropertiesOption
+} from '../../interface/Area'
+import { IAreaBadge, IBadge } from '../../interface/Badge'
 
 export class CommandAdapt {
   private draw: Draw
@@ -83,12 +126,13 @@ export class CommandAdapt {
   private position: Position
   private historyManager: HistoryManager
   private canvasEvent: CanvasEvent
-  private tableTool: TableTool
   private options: DeepRequired<IEditorOption>
   private control: Control
   private workerManager: WorkerManager
   private searchManager: Search
   private i18n: I18n
+  private zone: Zone
+  private tableOperate: TableOperate
 
   constructor(draw: Draw) {
     this.draw = draw
@@ -96,12 +140,13 @@ export class CommandAdapt {
     this.position = draw.getPosition()
     this.historyManager = draw.getHistoryManager()
     this.canvasEvent = draw.getCanvasEvent()
-    this.tableTool = draw.getTableTool()
     this.options = draw.getOptions()
     this.control = draw.getControl()
     this.workerManager = draw.getWorkerManager()
     this.searchManager = draw.getSearch()
     this.i18n = draw.getI18n()
+    this.zone = draw.getZone()
+    this.tableOperate = draw.getTableOperate()
   }
 
   public mode(payload: EditorMode) {
@@ -109,18 +154,18 @@ export class CommandAdapt {
   }
 
   public cut() {
-    const isReadonly = this.draw.isReadonly()
-    if (isReadonly) return
+    const isDisabled = this.draw.isReadonly() || this.draw.isDisabled()
+    if (isDisabled) return
     this.canvasEvent.cut()
   }
 
-  public copy() {
-    this.canvasEvent.copy()
+  public copy(payload?: ICopyOption) {
+    this.canvasEvent.copy(payload)
   }
 
   public paste(payload?: IPasteOption) {
-    const isReadonly = this.draw.isReadonly()
-    if (isReadonly) return
+    const isDisabled = this.draw.isReadonly() || this.draw.isDisabled()
+    if (isDisabled) return
     pasteByApi(this.canvasEvent, payload)
   }
 
@@ -129,8 +174,8 @@ export class CommandAdapt {
   }
 
   public backspace() {
-    const isReadonly = this.draw.isReadonly()
-    if (isReadonly) return
+    const isDisabled = this.draw.isReadonly() || this.draw.isDisabled()
+    if (isDisabled) return
     const elementList = this.draw.getElementList()
     const { startIndex, endIndex } = this.range.getRange()
     const isCollapsed = startIndex === endIndex
@@ -269,15 +314,13 @@ export class CommandAdapt {
   }
 
   public applyPainterStyle() {
-    const isDisabled =
-      this.draw.isReadonly() || this.control.isDisabledControl()
+    const isDisabled = this.draw.isReadonly() || this.draw.isDisabled()
     if (isDisabled) return
     this.canvasEvent.applyPainterStyle()
   }
 
   public format() {
-    const isDisabled =
-      this.draw.isReadonly() || this.control.isDisabledControl()
+    const isDisabled = this.draw.isReadonly() || this.draw.isDisabled()
     if (isDisabled) return
     const selection = this.range.getSelectionElementList()
     // 选区设置或设置换行处样式
@@ -297,20 +340,15 @@ export class CommandAdapt {
     }
     if (!changeElementList.length) return
     changeElementList.forEach(el => {
-      delete el.size
-      delete el.font
-      delete el.color
-      delete el.bold
-      delete el.italic
-      delete el.underline
-      delete el.strikeout
+      EDITOR_ELEMENT_STYLE_ATTR.forEach(attr => {
+        delete el[attr]
+      })
     })
     this.draw.render(renderOption)
   }
 
   public font(payload: string) {
-    const isDisabled =
-      this.draw.isReadonly() || this.control.isDisabledControl()
+    const isDisabled = this.draw.isReadonly() || this.draw.isDisabled()
     if (isDisabled) return
     const selection = this.range.getSelectionElementList()
     if (selection?.length) {
@@ -319,21 +357,30 @@ export class CommandAdapt {
       })
       this.draw.render({ isSetCursor: false })
     } else {
+      let isSubmitHistory = true
       const { endIndex } = this.range.getRange()
       const elementList = this.draw.getElementList()
       const enterElement = elementList[endIndex]
       if (enterElement?.value === ZERO) {
         enterElement.font = payload
-        this.draw.render({ curIndex: endIndex, isCompute: false })
+      } else {
+        this.range.setDefaultStyle({
+          font: payload
+        })
+        isSubmitHistory = false
       }
+      this.draw.render({
+        isSubmitHistory,
+        curIndex: endIndex,
+        isCompute: false
+      })
     }
   }
 
   public size(payload: number) {
     const { minSize, maxSize, defaultSize } = this.options
     if (payload < minSize || payload > maxSize) return
-    const isDisabled =
-      this.draw.isReadonly() || this.control.isDisabledControl()
+    const isDisabled = this.draw.isReadonly() || this.draw.isDisabled()
     if (isDisabled) return
     // 选区设置或设置换行处样式
     let renderOption: IDrawOption = {}
@@ -349,6 +396,15 @@ export class CommandAdapt {
       if (enterElement?.value === ZERO) {
         changeElementList.push(enterElement)
         renderOption = { curIndex: endIndex }
+      } else {
+        this.range.setDefaultStyle({
+          size: payload
+        })
+        this.draw.render({
+          curIndex: endIndex,
+          isCompute: false,
+          isSubmitHistory: false
+        })
       }
     }
     if (!changeElementList.length) return
@@ -369,9 +425,9 @@ export class CommandAdapt {
   }
 
   public sizeAdd() {
-    const isDisabled =
-      this.draw.isReadonly() || this.control.isDisabledControl()
+    const isDisabled = this.draw.isReadonly() || this.draw.isDisabled()
     if (isDisabled) return
+    const { defaultSize, maxSize } = this.options
     const selection = this.range.getTextLikeSelectionElementList()
     // 选区设置或设置换行处样式
     let renderOption: IDrawOption = {}
@@ -386,10 +442,20 @@ export class CommandAdapt {
       if (enterElement?.value === ZERO) {
         changeElementList.push(enterElement)
         renderOption = { curIndex: endIndex }
+      } else {
+        const style = this.range.getDefaultStyle()
+        const anchorSize = style?.size || enterElement.size || defaultSize
+        this.range.setDefaultStyle({
+          size: anchorSize + 2 > maxSize ? maxSize : anchorSize + 2
+        })
+        this.draw.render({
+          curIndex: endIndex,
+          isCompute: false,
+          isSubmitHistory: false
+        })
       }
     }
     if (!changeElementList.length) return
-    const { defaultSize, maxSize } = this.options
     let isExistUpdate = false
     changeElementList.forEach(el => {
       if (!el.size) {
@@ -409,9 +475,9 @@ export class CommandAdapt {
   }
 
   public sizeMinus() {
-    const isDisabled =
-      this.draw.isReadonly() || this.control.isDisabledControl()
+    const isDisabled = this.draw.isReadonly() || this.draw.isDisabled()
     if (isDisabled) return
+    const { defaultSize, minSize } = this.options
     const selection = this.range.getTextLikeSelectionElementList()
     // 选区设置或设置换行处样式
     let renderOption: IDrawOption = {}
@@ -426,10 +492,20 @@ export class CommandAdapt {
       if (enterElement?.value === ZERO) {
         changeElementList.push(enterElement)
         renderOption = { curIndex: endIndex }
+      } else {
+        const style = this.range.getDefaultStyle()
+        const anchorSize = style?.size || enterElement.size || defaultSize
+        this.range.setDefaultStyle({
+          size: anchorSize - 2 < minSize ? minSize : anchorSize - 2
+        })
+        this.draw.render({
+          curIndex: endIndex,
+          isCompute: false,
+          isSubmitHistory: false
+        })
       }
     }
     if (!changeElementList.length) return
-    const { defaultSize, minSize } = this.options
     let isExistUpdate = false
     changeElementList.forEach(el => {
       if (!el.size) {
@@ -449,8 +525,7 @@ export class CommandAdapt {
   }
 
   public bold() {
-    const isDisabled =
-      this.draw.isReadonly() || this.control.isDisabledControl()
+    const isDisabled = this.draw.isReadonly() || this.draw.isDisabled()
     if (isDisabled) return
     const selection = this.range.getSelectionElementList()
     if (selection?.length) {
@@ -460,19 +535,28 @@ export class CommandAdapt {
       })
       this.draw.render({ isSetCursor: false })
     } else {
+      let isSubmitHistory = true
       const { endIndex } = this.range.getRange()
       const elementList = this.draw.getElementList()
       const enterElement = elementList[endIndex]
       if (enterElement?.value === ZERO) {
         enterElement.bold = !enterElement.bold
-        this.draw.render({ curIndex: endIndex, isCompute: false })
+      } else {
+        this.range.setDefaultStyle({
+          bold: enterElement.bold ? false : !this.range.getDefaultStyle()?.bold
+        })
+        isSubmitHistory = false
       }
+      this.draw.render({
+        isSubmitHistory,
+        curIndex: endIndex,
+        isCompute: false
+      })
     }
   }
 
   public italic() {
-    const isDisabled =
-      this.draw.isReadonly() || this.control.isDisabledControl()
+    const isDisabled = this.draw.isReadonly() || this.draw.isDisabled()
     if (isDisabled) return
     const selection = this.range.getSelectionElementList()
     if (selection?.length) {
@@ -482,19 +566,30 @@ export class CommandAdapt {
       })
       this.draw.render({ isSetCursor: false })
     } else {
+      let isSubmitHistory = true
       const { endIndex } = this.range.getRange()
       const elementList = this.draw.getElementList()
       const enterElement = elementList[endIndex]
       if (enterElement?.value === ZERO) {
         enterElement.italic = !enterElement.italic
-        this.draw.render({ curIndex: endIndex, isCompute: false })
+      } else {
+        this.range.setDefaultStyle({
+          italic: enterElement.italic
+            ? false
+            : !this.range.getDefaultStyle()?.italic
+        })
+        isSubmitHistory = false
       }
+      this.draw.render({
+        isSubmitHistory,
+        curIndex: endIndex,
+        isCompute: false
+      })
     }
   }
 
   public underline(textDecoration?: ITextDecoration) {
-    const isDisabled =
-      this.draw.isReadonly() || this.control.isDisabledControl()
+    const isDisabled = this.draw.isReadonly() || this.draw.isDisabled()
     if (isDisabled) return
     const selection = this.range.getSelectionElementList()
     if (selection?.length) {
@@ -521,19 +616,30 @@ export class CommandAdapt {
         isCompute: false
       })
     } else {
+      let isSubmitHistory = true
       const { endIndex } = this.range.getRange()
       const elementList = this.draw.getElementList()
       const enterElement = elementList[endIndex]
       if (enterElement?.value === ZERO) {
         enterElement.underline = !enterElement.underline
-        this.draw.render({ curIndex: endIndex, isCompute: false })
+      } else {
+        this.range.setDefaultStyle({
+          underline: enterElement?.underline
+            ? false
+            : !this.range.getDefaultStyle()?.underline
+        })
+        isSubmitHistory = false
       }
+      this.draw.render({
+        isSubmitHistory,
+        curIndex: endIndex,
+        isCompute: false
+      })
     }
   }
 
   public strikeout() {
-    const isDisabled =
-      this.draw.isReadonly() || this.control.isDisabledControl()
+    const isDisabled = this.draw.isReadonly() || this.draw.isDisabled()
     if (isDisabled) return
     const selection = this.range.getSelectionElementList()
     if (selection?.length) {
@@ -546,19 +652,30 @@ export class CommandAdapt {
         isCompute: false
       })
     } else {
+      let isSubmitHistory = true
       const { endIndex } = this.range.getRange()
       const elementList = this.draw.getElementList()
       const enterElement = elementList[endIndex]
       if (enterElement?.value === ZERO) {
         enterElement.strikeout = !enterElement.strikeout
-        this.draw.render({ curIndex: endIndex, isCompute: false })
+      } else {
+        this.range.setDefaultStyle({
+          strikeout: enterElement.strikeout
+            ? false
+            : !this.range.getDefaultStyle()?.strikeout
+        })
+        isSubmitHistory = false
       }
+      this.draw.render({
+        isSubmitHistory,
+        curIndex: endIndex,
+        isCompute: false
+      })
     }
   }
 
   public superscript() {
-    const isDisabled =
-      this.draw.isReadonly() || this.control.isDisabledControl()
+    const isDisabled = this.draw.isReadonly() || this.draw.isDisabled()
     if (isDisabled) return
     const selection = this.range.getSelectionElementList()
     if (!selection) return
@@ -587,8 +704,7 @@ export class CommandAdapt {
   }
 
   public subscript() {
-    const isDisabled =
-      this.draw.isReadonly() || this.control.isDisabledControl()
+    const isDisabled = this.draw.isReadonly() || this.draw.isDisabled()
     if (isDisabled) return
     const selection = this.range.getSelectionElementList()
     if (!selection) return
@@ -617,8 +733,7 @@ export class CommandAdapt {
   }
 
   public color(payload: string | null) {
-    const isDisabled =
-      this.draw.isReadonly() || this.control.isDisabledControl()
+    const isDisabled = this.draw.isReadonly() || this.draw.isDisabled()
     if (isDisabled) return
     const selection = this.range.getSelectionElementList()
     if (selection?.length) {
@@ -634,6 +749,7 @@ export class CommandAdapt {
         isCompute: false
       })
     } else {
+      let isSubmitHistory = true
       const { endIndex } = this.range.getRange()
       const elementList = this.draw.getElementList()
       const enterElement = elementList[endIndex]
@@ -643,14 +759,22 @@ export class CommandAdapt {
         } else {
           delete enterElement.color
         }
-        this.draw.render({ curIndex: endIndex, isCompute: false })
+      } else {
+        this.range.setDefaultStyle({
+          color: payload || undefined
+        })
+        isSubmitHistory = false
       }
+      this.draw.render({
+        isSubmitHistory,
+        curIndex: endIndex,
+        isCompute: false
+      })
     }
   }
 
   public highlight(payload: string | null) {
-    const isDisabled =
-      this.draw.isReadonly() || this.control.isDisabledControl()
+    const isDisabled = this.draw.isReadonly() || this.draw.isDisabled()
     if (isDisabled) return
     const selection = this.range.getSelectionElementList()
     if (selection?.length) {
@@ -666,6 +790,7 @@ export class CommandAdapt {
         isCompute: false
       })
     } else {
+      let isSubmitHistory = true
       const { endIndex } = this.range.getRange()
       const elementList = this.draw.getElementList()
       const enterElement = elementList[endIndex]
@@ -675,14 +800,23 @@ export class CommandAdapt {
         } else {
           delete enterElement.highlight
         }
-        this.draw.render({ curIndex: endIndex, isCompute: false })
+      } else {
+        this.range.setDefaultStyle({
+          highlight: payload || undefined
+        })
+        isSubmitHistory = false
       }
+      this.draw.render({
+        isSubmitHistory,
+        curIndex: endIndex,
+        isCompute: false
+      })
     }
   }
 
   public title(payload: TitleLevel | null) {
-    const isReadonly = this.draw.isReadonly()
-    if (isReadonly) return
+    const isDisabled = this.draw.isReadonly() || this.draw.isDisabled()
+    if (isDisabled) return
     const { startIndex, endIndex } = this.range.getRange()
     if (!~startIndex && !~endIndex) return
     const elementList = this.draw.getElementList()
@@ -707,6 +841,7 @@ export class CommandAdapt {
       } else {
         if (el.titleId) {
           delete el.titleId
+          delete el.title
           delete el.level
           delete el.size
           delete el.bold
@@ -758,811 +893,122 @@ export class CommandAdapt {
   }
 
   public insertTable(row: number, col: number) {
-    const isReadonly = this.draw.isReadonly()
-    if (isReadonly) return
+    const isDisabled = this.draw.isReadonly() || this.draw.isDisabled()
+    if (isDisabled) return
     const activeControl = this.control.getActiveControl()
     if (activeControl) return
-    const { startIndex, endIndex } = this.range.getRange()
-    if (!~startIndex && !~endIndex) return
-    const elementList = this.draw.getElementList()
-    let offsetX = 0
-    if (elementList[startIndex]?.listId) {
-      const positionList = this.position.getPositionList()
-      const { rowIndex } = positionList[startIndex]
-      const rowList = this.draw.getRowList()
-      const row = rowList[rowIndex]
-      offsetX = row?.offsetX || 0
-    }
-    const innerWidth = this.draw.getOriginalInnerWidth() - offsetX
-    // colgroup
-    const colgroup: IColgroup[] = []
-    const colWidth = innerWidth / col
-    for (let c = 0; c < col; c++) {
-      colgroup.push({
-        width: colWidth
-      })
-    }
-    // trlist
-    const trList: ITr[] = []
-    for (let r = 0; r < row; r++) {
-      const tdList: ITd[] = []
-      const tr: ITr = {
-        height: this.options.defaultTrMinHeight,
-        tdList
-      }
-      for (let c = 0; c < col; c++) {
-        tdList.push({
-          colspan: 1,
-          rowspan: 1,
-          value: [{ value: ZERO, size: 16 }]
-        })
-      }
-      trList.push(tr)
-    }
-    const element: IElement = {
-      type: ElementType.TABLE,
-      value: '',
-      colgroup,
-      trList
-    }
-    // 格式化element
-    formatElementList([element], {
-      editorOptions: this.options
-    })
-    formatElementContext(elementList, [element], startIndex)
-    const curIndex = startIndex + 1
-    this.draw.spliceElementList(
-      elementList,
-      curIndex,
-      startIndex === endIndex ? 0 : endIndex - startIndex,
-      element
-    )
-    this.range.setRange(curIndex, curIndex)
-    this.draw.render({ curIndex, isSetCursor: false })
+    this.tableOperate.insertTable(row, col)
   }
 
   public insertTableTopRow() {
     const isReadonly = this.draw.isReadonly()
     if (isReadonly) return
-    const positionContext = this.position.getPositionContext()
-    if (!positionContext.isTable) return
-    const { index, trIndex, tableId } = positionContext
-    const originalElementList = this.draw.getOriginalElementList()
-    const element = originalElementList[index!]
-    const curTrList = element.trList!
-    const curTr = curTrList[trIndex!]
-    // 之前跨行的增加跨行数
-    if (curTr.tdList.length < element.colgroup!.length) {
-      const curTrNo = curTr.tdList[0].rowIndex!
-      for (let t = 0; t < trIndex!; t++) {
-        const tr = curTrList[t]
-        for (let d = 0; d < tr.tdList.length; d++) {
-          const td = tr.tdList[d]
-          if (td.rowspan > 1 && td.rowIndex! + td.rowspan >= curTrNo + 1) {
-            td.rowspan += 1
-          }
-        }
-      }
-    }
-    // 增加当前行
-    const newTrId = getUUID()
-    const newTr: ITr = {
-      height: curTr.height,
-      id: newTrId,
-      tdList: []
-    }
-    for (let t = 0; t < curTr.tdList.length; t++) {
-      const curTd = curTr.tdList[t]
-      const newTdId = getUUID()
-      newTr.tdList.push({
-        id: newTdId,
-        rowspan: 1,
-        colspan: curTd.colspan,
-        value: [
-          {
-            value: ZERO,
-            size: 16,
-            tableId,
-            trId: newTrId,
-            tdId: newTdId
-          }
-        ]
-      })
-    }
-    curTrList.splice(trIndex!, 0, newTr)
-    // 重新设置上下文
-    this.position.setPositionContext({
-      isTable: true,
-      index,
-      trIndex,
-      tdIndex: 0,
-      tdId: newTr.tdList[0].id,
-      trId: newTr.id,
-      tableId
-    })
-    this.range.setRange(0, 0)
-    // 重新渲染
-    this.draw.render({ curIndex: 0 })
-    this.tableTool.render()
+    this.tableOperate.insertTableTopRow()
   }
 
   public insertTableBottomRow() {
     const isReadonly = this.draw.isReadonly()
     if (isReadonly) return
-    const positionContext = this.position.getPositionContext()
-    if (!positionContext.isTable) return
-    const { index, trIndex, tableId } = positionContext
-    const originalElementList = this.draw.getOriginalElementList()
-    const element = originalElementList[index!]
-    const curTrList = element.trList!
-    const curTr = curTrList[trIndex!]
-    const anchorTr =
-      curTrList.length - 1 === trIndex ? curTr : curTrList[trIndex! + 1]
-    // 之前/当前行跨行的增加跨行数
-    if (anchorTr.tdList.length < element.colgroup!.length) {
-      const curTrNo = anchorTr.tdList[0].rowIndex!
-      for (let t = 0; t < trIndex! + 1; t++) {
-        const tr = curTrList[t]
-        for (let d = 0; d < tr.tdList.length; d++) {
-          const td = tr.tdList[d]
-          if (td.rowspan > 1 && td.rowIndex! + td.rowspan >= curTrNo + 1) {
-            td.rowspan += 1
-          }
-        }
-      }
-    }
-    // 增加当前行
-    const newTrId = getUUID()
-    const newTr: ITr = {
-      height: anchorTr.height,
-      id: newTrId,
-      tdList: []
-    }
-    for (let t = 0; t < anchorTr.tdList.length; t++) {
-      const curTd = anchorTr.tdList[t]
-      const newTdId = getUUID()
-      newTr.tdList.push({
-        id: newTdId,
-        rowspan: 1,
-        colspan: curTd.colspan,
-        value: [
-          {
-            value: ZERO,
-            size: 16,
-            tableId,
-            trId: newTrId,
-            tdId: newTdId
-          }
-        ]
-      })
-    }
-    curTrList.splice(trIndex! + 1, 0, newTr)
-    // 重新设置上下文
-    this.position.setPositionContext({
-      isTable: true,
-      index,
-      trIndex: trIndex! + 1,
-      tdIndex: 0,
-      tdId: newTr.tdList[0].id,
-      trId: newTr.id,
-      tableId
-    })
-    this.range.setRange(0, 0)
-    // 重新渲染
-    this.draw.render({ curIndex: 0 })
-    this.tableTool.render()
+    this.tableOperate.insertTableBottomRow()
   }
 
   public insertTableLeftCol() {
     const isReadonly = this.draw.isReadonly()
     if (isReadonly) return
-    const positionContext = this.position.getPositionContext()
-    if (!positionContext.isTable) return
-    const { index, tdIndex, tableId } = positionContext
-    const originalElementList = this.draw.getOriginalElementList()
-    const element = originalElementList[index!]
-    const curTrList = element.trList!
-    const curTdIndex = tdIndex!
-    // 增加列
-    for (let t = 0; t < curTrList.length; t++) {
-      const tr = curTrList[t]
-      const tdId = getUUID()
-      tr.tdList.splice(curTdIndex, 0, {
-        id: tdId,
-        rowspan: 1,
-        colspan: 1,
-        value: [
-          {
-            value: ZERO,
-            size: 16,
-            tableId,
-            trId: tr.id,
-            tdId
-          }
-        ]
-      })
-    }
-    // 重新计算宽度
-    const colgroup = element.colgroup!
-    colgroup.splice(curTdIndex, 0, {
-      width: this.options.defaultColMinWidth
-    })
-    const colgroupWidth = colgroup.reduce((pre, cur) => pre + cur.width, 0)
-    const width = this.draw.getOriginalInnerWidth()
-    if (colgroupWidth > width) {
-      const adjustWidth = (colgroupWidth - width) / colgroup.length
-      for (let g = 0; g < colgroup.length; g++) {
-        const group = colgroup[g]
-        group.width -= adjustWidth
-      }
-    }
-    // 重新设置上下文
-    this.position.setPositionContext({
-      isTable: true,
-      index,
-      trIndex: 0,
-      tdIndex: curTdIndex,
-      tdId: curTrList[0].tdList[curTdIndex].id,
-      trId: curTrList[0].id,
-      tableId
-    })
-    this.range.setRange(0, 0)
-    // 重新渲染
-    this.draw.render({ curIndex: 0 })
-    this.tableTool.render()
+    this.tableOperate.insertTableLeftCol()
   }
 
   public insertTableRightCol() {
     const isReadonly = this.draw.isReadonly()
     if (isReadonly) return
-    const positionContext = this.position.getPositionContext()
-    if (!positionContext.isTable) return
-    const { index, tdIndex, tableId } = positionContext
-    const originalElementList = this.draw.getOriginalElementList()
-    const element = originalElementList[index!]
-    const curTrList = element.trList!
-    const curTdIndex = tdIndex! + 1
-    // 增加列
-    for (let t = 0; t < curTrList.length; t++) {
-      const tr = curTrList[t]
-      const tdId = getUUID()
-      tr.tdList.splice(curTdIndex, 0, {
-        id: tdId,
-        rowspan: 1,
-        colspan: 1,
-        value: [
-          {
-            value: ZERO,
-            size: 16,
-            tableId,
-            trId: tr.id,
-            tdId
-          }
-        ]
-      })
-    }
-    // 重新计算宽度
-    const colgroup = element.colgroup!
-    colgroup.splice(curTdIndex, 0, {
-      width: this.options.defaultColMinWidth
-    })
-    const colgroupWidth = colgroup.reduce((pre, cur) => pre + cur.width, 0)
-    const width = this.draw.getOriginalInnerWidth()
-    if (colgroupWidth > width) {
-      const adjustWidth = (colgroupWidth - width) / colgroup.length
-      for (let g = 0; g < colgroup.length; g++) {
-        const group = colgroup[g]
-        group.width -= adjustWidth
-      }
-    }
-    // 重新设置上下文
-    this.position.setPositionContext({
-      isTable: true,
-      index,
-      trIndex: 0,
-      tdIndex: curTdIndex,
-      tdId: curTrList[0].tdList[curTdIndex].id,
-      trId: curTrList[0].id,
-      tableId
-    })
-    this.range.setRange(0, 0)
-    // 重新渲染
-    this.draw.render({ curIndex: 0 })
-    this.tableTool.render()
+    this.tableOperate.insertTableRightCol()
   }
 
   public deleteTableRow() {
     const isReadonly = this.draw.isReadonly()
     if (isReadonly) return
-    const positionContext = this.position.getPositionContext()
-    if (!positionContext.isTable) return
-    const { index, trIndex, tdIndex } = positionContext
-    const originalElementList = this.draw.getOriginalElementList()
-    const element = originalElementList[index!]
-    const trList = element.trList!
-    const curTr = trList[trIndex!]
-    const curTdRowIndex = curTr.tdList[tdIndex!].rowIndex!
-    // 如果是最后一行，直接删除整个表格
-    if (trList.length <= 1) {
-      this.deleteTable()
-      return
-    }
-    // 之前行缩小rowspan
-    for (let r = 0; r < curTdRowIndex; r++) {
-      const tr = trList[r]
-      const tdList = tr.tdList
-      for (let d = 0; d < tdList.length; d++) {
-        const td = tdList[d]
-        if (td.rowIndex! + td.rowspan > curTdRowIndex) {
-          td.rowspan--
-        }
-      }
-    }
-    // 补跨行
-    for (let d = 0; d < curTr.tdList.length; d++) {
-      const td = curTr.tdList[d]
-      if (td.rowspan > 1) {
-        const tdId = getUUID()
-        const nextTr = trList[trIndex! + 1]
-        nextTr.tdList.splice(d, 0, {
-          id: tdId,
-          rowspan: td.rowspan - 1,
-          colspan: td.colspan,
-          value: [
-            {
-              value: ZERO,
-              size: 16,
-              tableId: element.id,
-              trId: nextTr.id,
-              tdId
-            }
-          ]
-        })
-      }
-    }
-    // 删除当前行
-    trList.splice(trIndex!, 1)
-    // 重新设置上下文
-    this.position.setPositionContext({
-      isTable: false
-    })
-    this.range.clearRange()
-    // 重新渲染
-    this.draw.render({
-      curIndex: positionContext.index
-    })
-    this.tableTool.dispose()
+    this.tableOperate.deleteTableRow()
   }
 
   public deleteTableCol() {
     const isReadonly = this.draw.isReadonly()
     if (isReadonly) return
-    const positionContext = this.position.getPositionContext()
-    if (!positionContext.isTable) return
-    const { index, tdIndex, trIndex } = positionContext
-    const originalElementList = this.draw.getOriginalElementList()
-    const element = originalElementList[index!]
-    const curTrList = element.trList!
-    const curTd = curTrList[trIndex!].tdList[tdIndex!]
-    const curColIndex = curTd.colIndex!
-    // 如果是最后一列，直接删除整个表格
-    const moreTdTr = curTrList.find(tr => tr.tdList.length > 1)
-    if (!moreTdTr) {
-      this.deleteTable()
-      return
-    }
-    // 跨列处理
-    for (let t = 0; t < curTrList.length; t++) {
-      const tr = curTrList[t]
-      for (let d = 0; d < tr.tdList.length; d++) {
-        const td = tr.tdList[d]
-        if (td.colspan > 1) {
-          const tdColIndex = td.colIndex!
-          // 交叉减去一列
-          if (
-            tdColIndex <= curColIndex &&
-            tdColIndex + td.colspan - 1 >= curColIndex
-          ) {
-            td.colspan -= 1
-          }
-        }
-      }
-    }
-    // 删除当前列
-    for (let t = 0; t < curTrList.length; t++) {
-      const tr = curTrList[t]
-      let start = -1
-      for (let d = 0; d < tr.tdList.length; d++) {
-        const td = tr.tdList[d]
-        if (td.colIndex === curColIndex) {
-          start = d
-        }
-      }
-      if (~start) {
-        tr.tdList.splice(start, 1)
-      }
-    }
-    element.colgroup?.splice(curColIndex, 1)
-    // 重新设置上下文
-    this.position.setPositionContext({
-      isTable: false
-    })
-    this.range.setRange(0, 0)
-    // 重新渲染
-    this.draw.render({
-      curIndex: positionContext.index
-    })
-    this.tableTool.dispose()
+    this.tableOperate.deleteTableCol()
   }
 
   public deleteTable() {
     const isReadonly = this.draw.isReadonly()
     if (isReadonly) return
-    const positionContext = this.position.getPositionContext()
-    if (!positionContext.isTable) return
-    const originalElementList = this.draw.getOriginalElementList()
-    originalElementList.splice(positionContext.index!, 1)
-    const curIndex = positionContext.index! - 1
-    this.position.setPositionContext({
-      isTable: false,
-      index: curIndex
-    })
-    this.range.setRange(curIndex, curIndex)
-    this.draw.render({ curIndex })
-    this.tableTool.dispose()
+    this.tableOperate.deleteTable()
   }
 
   public mergeTableCell() {
     const isReadonly = this.draw.isReadonly()
     if (isReadonly) return
-    const positionContext = this.position.getPositionContext()
-    if (!positionContext.isTable) return
-    const {
-      isCrossRowCol,
-      startTdIndex,
-      endTdIndex,
-      startTrIndex,
-      endTrIndex
-    } = this.range.getRange()
-    if (!isCrossRowCol) return
-    const { index } = positionContext
-    const originalElementList = this.draw.getOriginalElementList()
-    const element = originalElementList[index!]
-    const curTrList = element.trList!
-    let startTd = curTrList[startTrIndex!].tdList[startTdIndex!]
-    let endTd = curTrList[endTrIndex!].tdList[endTdIndex!]
-    // 交换起始位置
-    if (startTd.x! > endTd.x! || startTd.y! > endTd.y!) {
-      // prettier-ignore
-      [startTd, endTd] = [endTd, startTd]
-    }
-    const startColIndex = startTd.colIndex!
-    const endColIndex = endTd.colIndex! + (endTd.colspan - 1)
-    const startRowIndex = startTd.rowIndex!
-    const endRowIndex = endTd.rowIndex! + (endTd.rowspan - 1)
-    // 选区行列
-    const rowCol: ITd[][] = []
-    for (let t = 0; t < curTrList.length; t++) {
-      const tr = curTrList[t]
-      const tdList: ITd[] = []
-      for (let d = 0; d < tr.tdList.length; d++) {
-        const td = tr.tdList[d]
-        const tdColIndex = td.colIndex!
-        const tdRowIndex = td.rowIndex!
-        if (
-          tdColIndex >= startColIndex &&
-          tdColIndex <= endColIndex &&
-          tdRowIndex >= startRowIndex &&
-          tdRowIndex <= endRowIndex
-        ) {
-          tdList.push(td)
-        }
-      }
-      if (tdList.length) {
-        rowCol.push(tdList)
-      }
-    }
-    if (!rowCol.length) return
-    // 是否是矩形
-    const lastRow = rowCol[rowCol.length - 1]
-    const leftTop = rowCol[0][0]
-    const rightBottom = lastRow[lastRow.length - 1]
-    const startX = leftTop.x!
-    const startY = leftTop.y!
-    const endX = rightBottom.x! + rightBottom.width!
-    const endY = rightBottom.y! + rightBottom.height!
-    for (let t = 0; t < rowCol.length; t++) {
-      const tr = rowCol[t]
-      for (let d = 0; d < tr.length; d++) {
-        const td = tr[d]
-        const tdStartX = td.x!
-        const tdStartY = td.y!
-        const tdEndX = tdStartX + td.width!
-        const tdEndY = tdStartY + td.height!
-        // 存在不符合项
-        if (
-          startX > tdStartX ||
-          startY > tdStartY ||
-          endX < tdEndX ||
-          endY < tdEndY
-        ) {
-          return
-        }
-      }
-    }
-    // 合并单元格
-    const mergeTdIdList: string[] = []
-    const anchorTd = rowCol[0][0]
-    for (let t = 0; t < rowCol.length; t++) {
-      const tr = rowCol[t]
-      for (let d = 0; d < tr.length; d++) {
-        const td = tr[d]
-        const isAnchorTd = t === 0 && d === 0
-        // 待删除单元id
-        if (!isAnchorTd) {
-          mergeTdIdList.push(td.id!)
-        }
-        // 列合并
-        if (t === 0 && d !== 0) {
-          anchorTd.colspan += td.colspan
-        }
-        // 行合并
-        if (t !== 0) {
-          if (anchorTd.colIndex === td.colIndex) {
-            anchorTd.rowspan += td.rowspan
-          }
-        }
-      }
-    }
-    // 移除多余单元格
-    for (let t = 0; t < curTrList.length; t++) {
-      const tr = curTrList[t]
-      let d = 0
-      while (d < tr.tdList.length) {
-        const td = tr.tdList[d]
-        if (mergeTdIdList.includes(td.id!)) {
-          tr.tdList.splice(d, 1)
-          d--
-        }
-        d++
-      }
-    }
-    // 重新渲染
-    const curIndex = startTd.value.length - 1
-    this.range.setRange(curIndex, curIndex)
-    this.draw.render()
-    this.tableTool.render()
+    this.tableOperate.mergeTableCell()
   }
 
   public cancelMergeTableCell() {
     const isReadonly = this.draw.isReadonly()
     if (isReadonly) return
-    const positionContext = this.position.getPositionContext()
-    if (!positionContext.isTable) return
-    const { index, tdIndex, trIndex } = positionContext
-    const originalElementList = this.draw.getOriginalElementList()
-    const element = originalElementList[index!]
-    const curTrList = element.trList!
-    const curTr = curTrList[trIndex!]!
-    const curTd = curTr.tdList[tdIndex!]
-    if (curTd.rowspan === 1 && curTd.colspan === 1) return
-    const colspan = curTd.colspan
-    // 设置跨列
-    if (curTd.colspan > 1) {
-      for (let c = 1; c < curTd.colspan; c++) {
-        const tdId = getUUID()
-        curTr.tdList.splice(tdIndex! + c, 0, {
-          id: tdId,
-          rowspan: 1,
-          colspan: 1,
-          value: [
-            {
-              value: ZERO,
-              size: 16,
-              tableId: element.id,
-              trId: curTr.id,
-              tdId
-            }
-          ]
-        })
-      }
-      curTd.colspan = 1
-    }
-    // 设置跨行
-    if (curTd.rowspan > 1) {
-      for (let r = 1; r < curTd.rowspan; r++) {
-        const tr = curTrList[trIndex! + r]
-        for (let c = 0; c < colspan; c++) {
-          const tdId = getUUID()
-          tr.tdList.splice(curTd.colIndex!, 0, {
-            id: tdId,
-            rowspan: 1,
-            colspan: 1,
-            value: [
-              {
-                value: ZERO,
-                size: 16,
-                tableId: element.id,
-                trId: tr.id,
-                tdId
-              }
-            ]
-          })
-        }
-      }
-      curTd.rowspan = 1
-    }
-    // 重新渲染
-    const curIndex = curTd.value.length - 1
-    this.range.setRange(curIndex, curIndex)
-    this.draw.render()
-    this.tableTool.render()
+    this.tableOperate.cancelMergeTableCell()
+  }
+
+  public splitVerticalTableCell() {
+    const isReadonly = this.draw.isReadonly()
+    if (isReadonly) return
+    this.tableOperate.splitVerticalTableCell()
+  }
+
+  public splitHorizontalTableCell() {
+    const isReadonly = this.draw.isReadonly()
+    if (isReadonly) return
+    this.tableOperate.splitHorizontalTableCell()
   }
 
   public tableTdVerticalAlign(payload: VerticalAlign) {
     const isReadonly = this.draw.isReadonly()
     if (isReadonly) return
-    const rowCol = this.draw.getTableParticle().getRangeRowCol()
-    if (!rowCol) return
-    for (let r = 0; r < rowCol.length; r++) {
-      const row = rowCol[r]
-      for (let c = 0; c < row.length; c++) {
-        const td = row[c]
-        if (
-          !td ||
-          td.verticalAlign === payload ||
-          (!td.verticalAlign && payload === VerticalAlign.TOP)
-        ) {
-          continue
-        }
-        // 重设垂直对齐方式
-        td.verticalAlign = payload
-      }
-    }
-    const { endIndex } = this.range.getRange()
-    this.draw.render({
-      curIndex: endIndex
-    })
+    this.tableOperate.tableTdVerticalAlign(payload)
   }
 
   public tableBorderType(payload: TableBorder) {
     const isReadonly = this.draw.isReadonly()
     if (isReadonly) return
-    const positionContext = this.position.getPositionContext()
-    if (!positionContext.isTable) return
-    const { index } = positionContext
-    const originalElementList = this.draw.getOriginalElementList()
-    const element = originalElementList[index!]
-    if (
-      (!element.borderType && payload === TableBorder.ALL) ||
-      element.borderType === payload
-    ) {
-      return
-    }
-    element.borderType = payload
-    const { endIndex } = this.range.getRange()
-    this.draw.render({
-      curIndex: endIndex
-    })
+    this.tableOperate.tableBorderType(payload)
+  }
+
+  public tableBorderColor(payload: string) {
+    const isReadonly = this.draw.isReadonly()
+    if (isReadonly) return
+    this.tableOperate.tableBorderColor(payload)
   }
 
   public tableTdBorderType(payload: TdBorder) {
     const isReadonly = this.draw.isReadonly()
     if (isReadonly) return
-    const rowCol = this.draw.getTableParticle().getRangeRowCol()
-    if (!rowCol) return
-    const tdList = rowCol.flat()
-    // 存在则设置边框类型，否则取消设置
-    const isSetBorderType = tdList.some(
-      td => !td.borderTypes?.includes(payload)
-    )
-    tdList.forEach(td => {
-      if (!td.borderTypes) {
-        td.borderTypes = []
-      }
-      const borderTypeIndex = td.borderTypes.findIndex(type => type === payload)
-      if (isSetBorderType) {
-        if (!~borderTypeIndex) {
-          td.borderTypes.push(payload)
-        }
-      } else {
-        if (~borderTypeIndex) {
-          td.borderTypes.splice(borderTypeIndex, 1)
-        }
-      }
-      // 不存在边框设置时删除字段
-      if (!td.borderTypes.length) {
-        delete td.borderTypes
-      }
-    })
-    const { endIndex } = this.range.getRange()
-    this.draw.render({
-      curIndex: endIndex
-    })
+    this.tableOperate.tableTdBorderType(payload)
   }
 
   public tableTdSlashType(payload: TdSlash) {
     const isReadonly = this.draw.isReadonly()
     if (isReadonly) return
-    const rowCol = this.draw.getTableParticle().getRangeRowCol()
-    if (!rowCol) return
-    const tdList = rowCol.flat()
-    // 存在则设置单元格斜线类型，否则取消设置
-    const isSetTdSlashType = tdList.some(
-      td => !td.slashTypes?.includes(payload)
-    )
-    tdList.forEach(td => {
-      if (!td.slashTypes) {
-        td.slashTypes = []
-      }
-      const slashTypeIndex = td.slashTypes.findIndex(type => type === payload)
-      if (isSetTdSlashType) {
-        if (!~slashTypeIndex) {
-          td.slashTypes.push(payload)
-        }
-      } else {
-        if (~slashTypeIndex) {
-          td.slashTypes.splice(slashTypeIndex, 1)
-        }
-      }
-      // 不存在斜线设置时删除字段
-      if (!td.slashTypes.length) {
-        delete td.slashTypes
-      }
-    })
-    const { endIndex } = this.range.getRange()
-    this.draw.render({
-      curIndex: endIndex
-    })
+    this.tableOperate.tableTdSlashType(payload)
   }
 
   public tableTdBackgroundColor(payload: string) {
     const isReadonly = this.draw.isReadonly()
     if (isReadonly) return
-    const rowCol = this.draw.getTableParticle().getRangeRowCol()
-    if (!rowCol) return
-    for (let r = 0; r < rowCol.length; r++) {
-      const row = rowCol[r]
-      for (let c = 0; c < row.length; c++) {
-        const col = row[c]
-        col.backgroundColor = payload
-      }
-    }
-    const { endIndex } = this.range.getRange()
-    this.range.setRange(endIndex, endIndex)
-    this.draw.render({
-      isCompute: false
-    })
+    this.tableOperate.tableTdBackgroundColor(payload)
   }
 
   public tableSelectAll() {
-    const positionContext = this.position.getPositionContext()
-    const { index, tableId, isTable } = positionContext
-    if (!isTable || !tableId) return
-    const { startIndex, endIndex } = this.range.getRange()
-    const originalElementList = this.draw.getOriginalElementList()
-    const trList = originalElementList[index!].trList!
-    // 最后单元格位置
-    const endTrIndex = trList.length - 1
-    const endTdIndex = trList[endTrIndex].tdList.length - 1
-    this.range.replaceRange({
-      startIndex,
-      endIndex,
-      tableId,
-      startTdIndex: 0,
-      endTdIndex,
-      startTrIndex: 0,
-      endTrIndex
-    })
-    this.draw.render({
-      isCompute: false,
-      isSubmitHistory: false
-    })
+    this.tableOperate.tableSelectAll()
   }
 
   public hyperlink(payload: IElement) {
-    const isReadonly = this.draw.isReadonly()
-    if (isReadonly) return
+    const isDisabled = this.draw.isReadonly() || this.draw.isDisabled()
+    if (isDisabled) return
     const activeControl = this.control.getActiveControl()
     if (activeControl) return
     const { startIndex, endIndex } = this.range.getRange()
@@ -1578,7 +1024,9 @@ export class CommandAdapt {
     }))
     if (!newElementList) return
     const start = startIndex + 1
-    formatElementContext(elementList, newElementList, startIndex)
+    formatElementContext(elementList, newElementList, startIndex, {
+      editorOptions: this.options
+    })
     this.draw.spliceElementList(
       elementList,
       start,
@@ -1627,8 +1075,8 @@ export class CommandAdapt {
   }
 
   public deleteHyperlink() {
-    const isReadonly = this.draw.isReadonly()
-    if (isReadonly) return
+    const isDisabled = this.draw.isReadonly() || this.draw.isDisabled()
+    if (isDisabled) return
     // 获取超链接索引
     const hyperRange = this.getHyperlinkRange()
     if (!hyperRange) return
@@ -1650,8 +1098,8 @@ export class CommandAdapt {
   }
 
   public cancelHyperlink() {
-    const isReadonly = this.draw.isReadonly()
-    if (isReadonly) return
+    const isDisabled = this.draw.isReadonly() || this.draw.isDisabled()
+    if (isDisabled) return
     // 获取超链接索引
     const hyperRange = this.getHyperlinkRange()
     if (!hyperRange) return
@@ -1675,8 +1123,8 @@ export class CommandAdapt {
   }
 
   public editHyperlink(payload: string) {
-    const isReadonly = this.draw.isReadonly()
-    if (isReadonly) return
+    const isDisabled = this.draw.isReadonly() || this.draw.isDisabled()
+    if (isDisabled) return
     // 获取超链接索引
     const hyperRange = this.getHyperlinkRange()
     if (!hyperRange) return
@@ -1697,8 +1145,8 @@ export class CommandAdapt {
   }
 
   public separator(payload: number[]) {
-    const isReadonly = this.draw.isReadonly()
-    if (isReadonly) return
+    const isDisabled = this.draw.isReadonly() || this.draw.isDisabled()
+    if (isDisabled) return
     const activeControl = this.control.getActiveControl()
     if (activeControl) return
     const { startIndex, endIndex } = this.range.getRange()
@@ -1723,7 +1171,9 @@ export class CommandAdapt {
         dashArray: payload
       }
       // 从行头增加分割线
-      formatElementContext(elementList, [newElement], startIndex)
+      formatElementContext(elementList, [newElement], startIndex, {
+        editorOptions: this.options
+      })
       if (startIndex !== 0 && elementList[startIndex].value === ZERO) {
         this.draw.spliceElementList(elementList, startIndex, 1, newElement)
         curIndex = startIndex - 1
@@ -1737,8 +1187,8 @@ export class CommandAdapt {
   }
 
   public pageBreak() {
-    const isReadonly = this.draw.isReadonly()
-    if (isReadonly) return
+    const isDisabled = this.draw.isReadonly() || this.draw.isDisabled()
+    if (isDisabled) return
     const activeControl = this.control.getActiveControl()
     if (activeControl) return
     this.insertElementList([
@@ -1753,12 +1203,14 @@ export class CommandAdapt {
     const isReadonly = this.draw.isReadonly()
     if (isReadonly) return
     const options = this.draw.getOptions()
-    const { color, size, opacity, font } = defaultWatermarkOption
+    const { color, size, opacity, font, gap } = defaultWatermarkOption
     options.watermark.data = payload.data
     options.watermark.color = payload.color || color
     options.watermark.size = payload.size || size
     options.watermark.opacity = payload.opacity || opacity
     options.watermark.font = payload.font || font
+    options.watermark.repeat = !!payload.repeat
+    options.watermark.gap = payload.gap || gap
     this.draw.render({
       isSetCursor: false,
       isSubmitHistory: false,
@@ -1781,19 +1233,19 @@ export class CommandAdapt {
   }
 
   public image(payload: IDrawImagePayload) {
-    const isDisabled =
-      this.draw.isReadonly() || this.control.isDisabledControl()
+    const isDisabled = this.draw.isReadonly() || this.draw.isDisabled()
     if (isDisabled) return
     const { startIndex, endIndex } = this.range.getRange()
     if (!~startIndex && !~endIndex) return
-    const { value, width, height } = payload
-    this.draw.insertElementList([
+    const { value, width, height, imgDisplay } = payload
+    this.insertElementList([
       {
         value,
         width,
         height,
         id: getUUID(),
-        type: ElementType.IMAGE
+        type: ElementType.IMAGE,
+        imgDisplay
       }
     ])
   }
@@ -1832,121 +1284,16 @@ export class CommandAdapt {
     return this.searchManager.getSearchNavigateInfo()
   }
 
-  public replace(payload: string) {
-    const isReadonly = this.draw.isReadonly()
-    if (isReadonly) return
-    if (!payload || new RegExp(`${ZERO}`, 'g').test(payload)) return
-    const matchList = this.draw.getSearch().getSearchMatchList()
-    if (!matchList.length) return
-    // 匹配index变化的差值
-    let pageDiffCount = 0
-    let tableDiffCount = 0
-    // 匹配搜索词的组标识
-    let curGroupId = ''
-    // 表格上下文
-    let curTdId = ''
-    // 搜索值 > 替换值：增加元素；搜索值 < 替换值：减少元素
-    let firstMatchIndex = -1
-    const elementList = this.draw.getOriginalElementList()
-    for (let m = 0; m < matchList.length; m++) {
-      const match = matchList[m]
-      if (match.type === EditorContext.TABLE) {
-        const { tableIndex, trIndex, tdIndex, index, tdId } = match
-        if (curTdId && tdId !== curTdId) {
-          tableDiffCount = 0
-        }
-        curTdId = tdId!
-        const curTableIndex = tableIndex! + pageDiffCount
-        const tableElementList =
-          elementList[curTableIndex].trList![trIndex!].tdList[tdIndex!].value
-        // 表格内元素
-        const curIndex = index + tableDiffCount
-        const tableElement = tableElementList[curIndex]
-        if (curGroupId === match.groupId) {
-          this.draw.spliceElementList(tableElementList, curIndex, 1)
-          tableDiffCount--
-          continue
-        }
-        for (let p = 0; p < payload.length; p++) {
-          const value = payload[p]
-          if (p === 0) {
-            tableElement.value = value
-          } else {
-            this.draw.spliceElementList(tableElementList, curIndex + p, 0, {
-              ...tableElement,
-              value
-            })
-            tableDiffCount++
-          }
-        }
-      } else {
-        const curIndex = match.index + pageDiffCount
-        const element = elementList[curIndex]
-        if (
-          element.type === ElementType.CONTROL &&
-          element.controlComponent !== ControlComponent.VALUE
-        ) {
-          continue
-        }
-        if (!~firstMatchIndex) {
-          firstMatchIndex = m
-        }
-        if (curGroupId === match.groupId) {
-          this.draw.spliceElementList(elementList, curIndex, 1)
-          pageDiffCount--
-          continue
-        }
-        for (let p = 0; p < payload.length; p++) {
-          const value = payload[p]
-          if (p === 0) {
-            element.value = value
-          } else {
-            this.draw.spliceElementList(elementList, curIndex + p, 0, {
-              ...element,
-              value
-            })
-            pageDiffCount++
-          }
-        }
-      }
-      curGroupId = match.groupId
-    }
-    if (!~firstMatchIndex) return
-    // 定位-首个被匹配关键词后
-    const firstMatch = matchList[firstMatchIndex]
-    const firstIndex = firstMatch.index + (payload.length - 1)
-    if (firstMatch.type === EditorContext.TABLE) {
-      const { tableIndex, trIndex, tdIndex, index } = firstMatch
-      const element =
-        elementList[tableIndex!].trList![trIndex!].tdList[tdIndex!].value[index]
-      this.position.setPositionContext({
-        isTable: true,
-        index: tableIndex,
-        trIndex,
-        tdIndex,
-        tdId: element.tdId,
-        trId: element.trId,
-        tableId: element.tableId
-      })
-    } else {
-      this.position.setPositionContext({
-        isTable: false
-      })
-    }
-    this.range.setRange(firstIndex, firstIndex)
-    // 重新渲染
-    this.draw.render({
-      curIndex: firstIndex
-    })
+  public replace(payload: string, option?: IReplaceOption) {
+    this.draw.getSearch().replace(payload, option)
   }
 
   public async print() {
-    const { scale, printPixelRatio, paperDirection } = this.options
+    const { scale, printPixelRatio, paperDirection, width, height } =
+      this.options
     if (scale !== 1) {
       this.draw.setPageScale(1)
     }
-    const width = this.draw.getOriginalWidth()
-    const height = this.draw.getOriginalHeight()
     const base64List = await this.draw.getDataURL({
       pixelRatio: printPixelRatio,
       mode: EditorMode.PRINT
@@ -1966,8 +1313,6 @@ export class CommandAdapt {
     const elementList = this.draw.getElementList()
     const element = elementList[startIndex]
     if (!element || element.type !== ElementType.IMAGE) return
-    // 替换图片
-    element.id = getUUID()
     element.value = payload
     this.draw.render({
       isSetCursor: false
@@ -1985,16 +1330,19 @@ export class CommandAdapt {
   public changeImageDisplay(element: IElement, display: ImageDisplay) {
     if (element.imgDisplay === display) return
     element.imgDisplay = display
+    const { startIndex, endIndex } = this.range.getRange()
     if (
+      display === ImageDisplay.SURROUND ||
       display === ImageDisplay.FLOAT_TOP ||
       display === ImageDisplay.FLOAT_BOTTOM
     ) {
       const positionList = this.position.getPositionList()
-      const { startIndex } = this.range.getRange()
       const {
+        pageNo,
         coordinate: { leftTop }
       } = positionList[startIndex]
       element.imgFloatPosition = {
+        pageNo,
         x: leftTop[0],
         y: leftTop[1]
       }
@@ -2003,7 +1351,8 @@ export class CommandAdapt {
     }
     this.draw.getPreviewer().clearResizer()
     this.draw.render({
-      isSetCursor: false
+      isSetCursor: true,
+      curIndex: endIndex
     })
   }
 
@@ -2017,6 +1366,12 @@ export class CommandAdapt {
 
   public getValue(options?: IGetValueOption): IEditorResult {
     return this.draw.getValue(options)
+  }
+
+  public getAreaValue(
+    options?: IGetAreaValueOption
+  ): IGetAreaValueResult | null {
+    return this.draw.getArea().getAreaValue(options)
   }
 
   public getHTML(): IEditorHTML {
@@ -2046,6 +1401,10 @@ export class CommandAdapt {
     return this.workerManager.getWordCount()
   }
 
+  public getCursorPosition(): IElementPosition | null {
+    return this.position.getCursorPosition()
+  }
+
   public getRange(): IRange {
     return deepClone(this.range.getRange())
   }
@@ -2060,12 +1419,21 @@ export class CommandAdapt {
     if (!~startIndex && !~endIndex) return null
     // 选区信息
     const isCollapsed = startIndex === endIndex
+    const selectionText = this.range.toString()
+    const selectionElementList = zipElementList(
+      this.range.getSelectionElementList() || []
+    )
     // 元素信息
     const elementList = this.draw.getElementList()
     const startElement = pickElementAttr(
-      elementList[isCollapsed ? startIndex : startIndex + 1]
+      elementList[isCollapsed ? startIndex : startIndex + 1],
+      {
+        extraPickAttrs: ['id']
+      }
     )
-    const endElement = pickElementAttr(elementList[endIndex])
+    const endElement = pickElementAttr(elementList[endIndex], {
+      extraPickAttrs: ['id']
+    })
     // 页码信息
     const positionList = this.position.getPositionList()
     const startPageNo = positionList[startIndex].pageNo
@@ -2125,14 +1493,47 @@ export class CommandAdapt {
     }
     // 区域信息
     const zone = this.draw.getZone().getZone()
-    return deepClone({
+    // 表格信息
+    const { isTable, trIndex, tdIndex, index } =
+      this.position.getPositionContext()
+    let tableElement: IElement | null = null
+    if (isTable) {
+      const originalElementList = this.draw.getOriginalElementList()
+      const originTableElement = originalElementList[index!] || null
+      if (originTableElement) {
+        tableElement = zipElementList([originTableElement])[0]
+      }
+    }
+    // 标题信息
+    let titleId: string | null = null
+    let titleStartPageNo: number | null = null
+    let start = startIndex - 1
+    while (start > 0) {
+      const curElement = elementList[start]
+      const preElement = elementList[start - 1]
+      if (curElement.titleId && curElement.titleId !== preElement?.titleId) {
+        titleId = curElement.titleId
+        titleStartPageNo = positionList[start].pageNo
+        break
+      }
+      start--
+    }
+    return deepClone<RangeContext>({
       isCollapsed,
       startElement,
       endElement,
       startPageNo,
       endPageNo,
       rangeRects,
-      zone
+      zone,
+      isTable,
+      trIndex: trIndex ?? null,
+      tdIndex: tdIndex ?? null,
+      tableElement,
+      selectionText,
+      selectionElementList,
+      titleId,
+      titleStartPageNo
     })
   }
 
@@ -2150,8 +1551,44 @@ export class CommandAdapt {
     return this.range.getKeywordRangeList(payload)
   }
 
+  public getKeywordContext(payload: string): ISearchResultContext[] | null {
+    const rangeList = this.getKeywordRangeList(payload)
+    if (!rangeList.length) return null
+    const searchResultContextList: ISearchResultContext[] = []
+    const positionList = this.position.getOriginalMainPositionList()
+    const elementList = this.draw.getOriginalMainElementList()
+    for (let r = 0; r < rangeList.length; r++) {
+      const range = rangeList[r]
+      const { startIndex, endIndex, tableId, startTrIndex, startTdIndex } =
+        range
+      let keywordPositionList: IElementPosition[] = positionList
+      if (range.tableId) {
+        const tableElement = elementList.find(el => el.id === tableId)
+        if (tableElement) {
+          keywordPositionList =
+            tableElement.trList?.[startTrIndex!]?.tdList?.[startTdIndex!]
+              ?.positionList || []
+        }
+      }
+      // 获取关键词始末位置
+      const startPosition = deepClone(keywordPositionList[startIndex])
+      const endPosition = deepClone(keywordPositionList[endIndex])
+      searchResultContextList.push({
+        range,
+        startPosition,
+        endPosition
+      })
+    }
+    return searchResultContextList
+  }
+
   public pageMode(payload: PageMode) {
     this.draw.setPageMode(payload)
+  }
+
+  public pageScale(scale: number) {
+    if (scale === this.options.scale) return
+    this.draw.setPageScale(scale)
   }
 
   public pageScaleRecovery() {
@@ -2193,15 +1630,34 @@ export class CommandAdapt {
     return this.draw.setPaperMargin(payload)
   }
 
+  public setMainBadge(payload: IBadge | null) {
+    this.draw.getBadge().setMainBadge(payload)
+    this.draw.render({
+      isCompute: false,
+      isSubmitHistory: false
+    })
+  }
+
+  public setAreaBadge(payload: IAreaBadge[]) {
+    this.draw.getBadge().setAreaBadgeMap(payload)
+    this.draw.render({
+      isCompute: false,
+      isSubmitHistory: false
+    })
+  }
+
   public insertElementList(payload: IElement[]) {
     if (!payload.length) return
-    const isReadonly = this.draw.isReadonly()
-    if (isReadonly) return
+    const isDisabled = this.draw.isReadonly() || this.draw.isDisabled()
+    if (isDisabled) return
     const cloneElementList = deepClone(payload)
     // 格式化上下文信息
     const { startIndex } = this.range.getRange()
     const elementList = this.draw.getElementList()
-    formatElementContext(elementList, cloneElementList, startIndex)
+    formatElementContext(elementList, cloneElementList, startIndex, {
+      isBreakWhenWrap: true,
+      editorOptions: this.options
+    })
     this.draw.insertElementList(cloneElementList)
   }
 
@@ -2215,25 +1671,170 @@ export class CommandAdapt {
     this.draw.appendElementList(deepClone(elementList), options)
   }
 
-  public setValue(payload: Partial<IEditorData>) {
-    this.draw.setValue(payload)
+  public updateElementById(payload: IUpdateElementByIdOption) {
+    const { id, conceptId } = payload
+    if (!id && !conceptId) return
+    const updateElementInfoList: {
+      elementList: IElement[]
+      index: number
+    }[] = []
+    function getElementInfoById(elementList: IElement[]) {
+      let i = 0
+      while (i < elementList.length) {
+        const element = elementList[i]
+        i++
+        if (element.type === ElementType.TABLE) {
+          const trList = element.trList!
+          for (let r = 0; r < trList.length; r++) {
+            const tr = trList[r]
+            for (let d = 0; d < tr.tdList.length; d++) {
+              const td = tr.tdList[d]
+              getElementInfoById(td.value)
+            }
+          }
+        }
+        if (
+          (id && (element.id === id || element.controlId === id)) ||
+          (conceptId && element.conceptId === conceptId)
+        ) {
+          updateElementInfoList.push({
+            elementList,
+            index: i - 1
+          })
+        }
+      }
+    }
+    // 优先正文再页眉页脚
+    const data = [
+      this.draw.getOriginalMainElementList(),
+      this.draw.getHeaderElementList(),
+      this.draw.getFooterElementList()
+    ]
+    for (const elementList of data) {
+      getElementInfoById(elementList)
+    }
+    // 更新内容
+    if (!updateElementInfoList.length) return
+    for (let i = 0; i < updateElementInfoList.length; i++) {
+      const { elementList, index } = updateElementInfoList[i]
+      elementList[index] = {
+        ...elementList[index],
+        ...payload.properties
+      }
+      formatElementList(zipElementList([elementList[index]]), {
+        isHandleFirstElement: false,
+        editorOptions: this.options
+      })
+    }
+    this.draw.render({
+      isSetCursor: false
+    })
   }
 
-  public removeControl() {
-    const { startIndex, endIndex } = this.range.getRange()
-    if (startIndex !== endIndex) return
-    const elementList = this.draw.getElementList()
-    const element = elementList[startIndex]
-    if (!element.controlId) return
-    // 删除控件
-    const control = this.draw.getControl()
-    const newIndex = control.removeControl(startIndex)
-    if (newIndex === null) return
-    // 重新渲染
-    this.range.setRange(newIndex, newIndex)
-    this.draw.render({
-      curIndex: newIndex
+  public getElementById(payload: IGetElementByIdOption): IElement[] {
+    const { id, conceptId } = payload
+    const result: IElement[] = []
+    if (!id && !conceptId) return result
+    const getElement = (elementList: IElement[]) => {
+      let i = 0
+      while (i < elementList.length) {
+        const element = elementList[i]
+        i++
+        if (element.type === ElementType.TABLE) {
+          const trList = element.trList!
+          for (let r = 0; r < trList.length; r++) {
+            const tr = trList[r]
+            for (let d = 0; d < tr.tdList.length; d++) {
+              const td = tr.tdList[d]
+              getElement(td.value)
+            }
+          }
+        }
+        if (
+          (id && element.controlId !== id && element.id !== id) ||
+          (conceptId && element.conceptId !== conceptId)
+        ) {
+          continue
+        }
+        result.push(element)
+      }
+    }
+    const data = [
+      this.draw.getHeaderElementList(),
+      this.draw.getOriginalMainElementList(),
+      this.draw.getFooterElementList()
+    ]
+    for (const elementList of data) {
+      getElement(elementList)
+    }
+    return zipElementList(result, {
+      extraPickAttrs: ['id']
     })
+  }
+
+  public setValue(payload: Partial<IEditorData>, options?: ISetValueOption) {
+    this.draw.setValue(payload, options)
+  }
+
+  public removeControl(payload?: IRemoveControlOption) {
+    if (payload?.id || payload?.conceptId) {
+      const { id, conceptId } = payload
+      let isExistRemove = false
+      const remove = (elementList: IElement[]) => {
+        let i = elementList.length - 1
+        while (i >= 0) {
+          const element = elementList[i]
+          if (element.type === ElementType.TABLE) {
+            const trList = element.trList!
+            for (let r = 0; r < trList.length; r++) {
+              const tr = trList[r]
+              for (let d = 0; d < tr.tdList.length; d++) {
+                const td = tr.tdList[d]
+                remove(td.value)
+              }
+            }
+          }
+          i--
+          if (
+            !element.control ||
+            (id && element.controlId !== id) ||
+            (conceptId && element.control.conceptId !== conceptId)
+          ) {
+            continue
+          }
+          isExistRemove = true
+          elementList.splice(i + 1, 1)
+        }
+      }
+      const data = [
+        this.draw.getHeaderElementList(),
+        this.draw.getOriginalMainElementList(),
+        this.draw.getFooterElementList()
+      ]
+      for (const elementList of data) {
+        remove(elementList)
+      }
+      if (isExistRemove) {
+        this.draw.render({
+          isSetCursor: false
+        })
+      }
+    } else {
+      const { startIndex, endIndex } = this.range.getRange()
+      if (startIndex !== endIndex) return
+      const elementList = this.draw.getElementList()
+      const element = elementList[startIndex]
+      if (!element.controlId) return
+      // 删除控件
+      const control = this.draw.getControl()
+      const newIndex = control.removeControl(startIndex)
+      if (newIndex === null) return
+      // 重新渲染
+      this.range.setRange(newIndex, newIndex)
+      this.draw.render({
+        curIndex: newIndex
+      })
+    }
   }
 
   public setLocale(payload: string) {
@@ -2249,7 +1850,7 @@ export class CommandAdapt {
   }
 
   public locationCatalog(titleId: string) {
-    const elementList = this.draw.getMainElementList()
+    const elementList = this.draw.getOriginalMainElementList()
     let newIndex = -1
     for (let e = 0; e < elementList.length; e++) {
       const element = elementList[e]
@@ -2262,6 +1863,9 @@ export class CommandAdapt {
       }
     }
     if (!~newIndex) return
+    this.position.setPositionContext({
+      isTable: false
+    })
     this.range.setRange(newIndex, newIndex)
     this.draw.render({
       curIndex: newIndex,
@@ -2363,36 +1967,362 @@ export class CommandAdapt {
   public getControlValue(
     payload: IGetControlValueOption
   ): IGetControlValueResult | null {
-    return this.draw.getControl().getValueByConceptId(payload)
+    return this.draw.getControl().getValueById(payload)
   }
 
   public setControlValue(payload: ISetControlValueOption) {
-    const isReadonly = this.draw.isReadonly()
-    if (isReadonly) return
-    this.draw.getControl().setValueByConceptId(payload)
+    this.draw.getControl().setValueById(payload)
   }
 
   public setControlExtension(payload: ISetControlExtensionOption) {
-    const isReadonly = this.draw.isReadonly()
-    if (isReadonly) return
-    this.draw.getControl().setExtensionByConceptId(payload)
+    this.draw.getControl().setExtensionById(payload)
   }
 
   public setControlProperties(payload: ISetControlProperties) {
-    const isReadonly = this.draw.isReadonly()
-    if (isReadonly) return
-    this.draw.getControl().setPropertiesByConceptId(payload)
+    this.draw.getControl().setPropertiesById(payload)
   }
 
   public setControlHighlight(payload: ISetControlHighlightOption) {
     this.draw.getControl().setHighlightList(payload)
+    this.draw.render({
+      isSubmitHistory: false
+    })
+  }
+
+  public updateOptions(payload: IUpdateOption) {
+    const newOption = mergeOption(payload)
+    Object.entries(newOption).forEach(([key, value]) => {
+      Reflect.set(this.options, key, value)
+    })
+    this.forceUpdate()
   }
 
   public getControlList(): IElement[] {
     return this.draw.getControl().getList()
   }
 
+  public locationControl(controlId: string, options?: ILocationControlOption) {
+    const isLocationAfter = options?.position === LocationPosition.AFTER
+    function location(
+      elementList: IElement[],
+      zone: EditorZone
+    ): ILocationPosition | null {
+      let i = 0
+      while (i < elementList.length) {
+        const element = elementList[i]
+        i++
+        if (element.type === ElementType.TABLE) {
+          const trList = element.trList!
+          for (let r = 0; r < trList.length; r++) {
+            const tr = trList[r]
+            for (let d = 0; d < tr.tdList.length; d++) {
+              const td = tr.tdList[d]
+              const locationContext = location(td.value, zone)
+              if (locationContext) {
+                return {
+                  ...locationContext,
+                  positionContext: {
+                    isTable: true,
+                    index: i - 1,
+                    trIndex: r,
+                    tdIndex: d,
+                    tdId: element.tdId,
+                    trId: element.trId,
+                    tableId: element.tableId
+                  }
+                }
+              }
+            }
+          }
+        }
+        if (element?.controlId !== controlId) continue
+        let curIndex = i - 1
+        if (isLocationAfter) {
+          curIndex -= 1
+          if (
+            element.controlComponent !== ControlComponent.PLACEHOLDER &&
+            element.controlComponent !== ControlComponent.POSTFIX &&
+            element.controlComponent !== ControlComponent.POST_TEXT
+          ) {
+            continue
+          }
+        } else {
+          if (
+            (element.controlComponent !== ControlComponent.PREFIX &&
+              element.controlComponent !== ControlComponent.PRE_TEXT) ||
+            elementList[i]?.controlComponent === ControlComponent.PREFIX ||
+            elementList[i]?.controlComponent === ControlComponent.PRE_TEXT
+          ) {
+            continue
+          }
+        }
+        return {
+          zone,
+          range: {
+            startIndex: curIndex,
+            endIndex: curIndex
+          },
+          positionContext: {
+            isTable: false
+          }
+        }
+      }
+      return null
+    }
+    const data = [
+      {
+        zone: EditorZone.HEADER,
+        elementList: this.draw.getHeaderElementList()
+      },
+      {
+        zone: EditorZone.MAIN,
+        elementList: this.draw.getOriginalMainElementList()
+      },
+      {
+        zone: EditorZone.FOOTER,
+        elementList: this.draw.getFooterElementList()
+      }
+    ]
+    for (const context of data) {
+      const locationContext = location(context.elementList, context.zone)
+      if (locationContext) {
+        // 设置区域、上下文、光标信息
+        this.setZone(locationContext.zone)
+        this.position.setPositionContext(locationContext.positionContext)
+        this.range.replaceRange(locationContext.range)
+        this.draw.render({
+          curIndex: locationContext.range.startIndex,
+          isCompute: false,
+          isSubmitHistory: false
+        })
+        break
+      }
+    }
+  }
+
+  public insertControl(payload: IElement) {
+    const isDisabled = this.draw.isReadonly() || this.draw.isDisabled()
+    if (isDisabled) return
+    const cloneElement = deepClone(payload)
+    // 格式化上下文信息
+    const { startIndex } = this.range.getRange()
+    const elementList = this.draw.getElementList()
+    const copyElement = getAnchorElement(elementList, startIndex)
+    if (!copyElement) return
+    const cloneAttr = [
+      ...TABLE_CONTEXT_ATTR,
+      ...EDITOR_ROW_ATTR,
+      ...LIST_CONTEXT_ATTR,
+      ...AREA_CONTEXT_ATTR
+    ]
+    cloneProperty<IElement>(cloneAttr, copyElement, cloneElement)
+    // 插入控件
+    this.draw.insertElementList([cloneElement])
+  }
+
   public getContainer(): HTMLDivElement {
     return this.draw.getContainer()
+  }
+
+  public getTitleValue(
+    payload: IGetTitleValueOption
+  ): IGetTitleValueResult | null {
+    const { conceptId } = payload
+    const result: IGetTitleValueResult = []
+    const getValue = (elementList: IElement[], zone: EditorZone) => {
+      let i = 0
+      while (i < elementList.length) {
+        const element = elementList[i]
+        i++
+        if (element.type === ElementType.TABLE) {
+          const trList = element.trList!
+          for (let r = 0; r < trList.length; r++) {
+            const tr = trList[r]
+            for (let d = 0; d < tr.tdList.length; d++) {
+              const td = tr.tdList[d]
+              getValue(td.value, zone)
+            }
+          }
+        }
+        if (element?.title?.conceptId !== conceptId) continue
+        // 先查找到标题，后循环至同级或上级标题处停止
+        const valueList: IElement[] = []
+        let j = i
+        while (j < elementList.length) {
+          const nextElement = elementList[j]
+          j++
+          if (element.titleId === nextElement.titleId) continue
+          if (
+            nextElement.level &&
+            titleOrderNumberMapping[nextElement.level] <=
+              titleOrderNumberMapping[element.level!]
+          ) {
+            break
+          }
+          valueList.push(nextElement)
+        }
+        result.push({
+          ...element.title!,
+          value: getTextFromElementList(valueList),
+          elementList: zipElementList(valueList),
+          zone
+        })
+        i = j
+      }
+    }
+    const data = [
+      {
+        zone: EditorZone.HEADER,
+        elementList: this.draw.getHeaderElementList()
+      },
+      {
+        zone: EditorZone.MAIN,
+        elementList: this.draw.getOriginalMainElementList()
+      },
+      {
+        zone: EditorZone.FOOTER,
+        elementList: this.draw.getFooterElementList()
+      }
+    ]
+    for (const { zone, elementList } of data) {
+      getValue(elementList, zone)
+    }
+    return result
+  }
+
+  public getPositionContextByEvent(
+    evt: MouseEvent
+  ): IPositionContextByEvent | null {
+    const pageIndex = (<HTMLElement>evt.target)?.dataset.index
+    if (!pageIndex) return null
+    const pageNo = Number(pageIndex)
+    const positionContext = this.position.getPositionByXY({
+      x: evt.offsetX,
+      y: evt.offsetY,
+      pageNo
+    })
+    const {
+      isDirectHit,
+      isTable,
+      index,
+      trIndex,
+      tdIndex,
+      tdValueIndex,
+      zone
+    } = positionContext
+    // 非直接命中或选区不一致时返回空值
+    if (!isDirectHit || (zone && zone !== this.zone.getZone())) return null
+    // 命中元素信息
+    let element: IElement | null = null
+    const elementList = this.draw.getOriginalElementList()
+    let position: IElementPosition | null = null
+    const positionList = this.position.getOriginalPositionList()
+    if (isTable) {
+      const td = elementList[index!].trList?.[trIndex!].tdList[tdIndex!]
+      element = td?.value[tdValueIndex!] || null
+      position = td?.positionList?.[tdValueIndex!] || null
+    } else {
+      element = elementList[index] || null
+      position = positionList[index] || null
+    }
+    // 元素包围信息
+    let rangeRect: RangeRect | null = null
+    if (position) {
+      const {
+        pageNo,
+        coordinate: { leftTop, rightTop },
+        lineHeight
+      } = position
+      const height = this.draw.getOriginalHeight()
+      const pageGap = this.draw.getOriginalPageGap()
+      rangeRect = {
+        x: leftTop[0],
+        y: leftTop[1] + pageNo * (height + pageGap),
+        width: rightTop[0] - leftTop[0],
+        height: lineHeight
+      }
+    }
+    return {
+      pageNo,
+      element,
+      rangeRect
+    }
+  }
+
+  public insertTitle(payload: IElement) {
+    const isDisabled = this.draw.isReadonly() || this.draw.isDisabled()
+    if (isDisabled) return
+    const cloneElement = deepClone(payload)
+    // 格式化上下文信息
+    const { startIndex } = this.range.getRange()
+    const elementList = this.draw.getElementList()
+    const copyElement = getAnchorElement(elementList, startIndex)
+    if (!copyElement) return
+    const cloneAttr = [
+      ...TABLE_CONTEXT_ATTR,
+      ...EDITOR_ROW_ATTR,
+      ...LIST_CONTEXT_ATTR,
+      ...AREA_CONTEXT_ATTR
+    ]
+    cloneElement.valueList?.forEach(valueItem => {
+      cloneProperty<IElement>(cloneAttr, copyElement, valueItem)
+    })
+    // 插入标题
+    this.draw.insertElementList([cloneElement])
+  }
+
+  public focus(payload?: IFocusOption) {
+    const { position = LocationPosition.AFTER } = payload || {}
+    const curIndex =
+      position === LocationPosition.BEFORE
+        ? 0
+        : this.draw.getOriginalMainElementList().length - 1
+    this.range.setRange(curIndex, curIndex)
+    this.draw.render({
+      curIndex,
+      isCompute: false,
+      isSubmitHistory: false
+    })
+    const positionList = this.draw.getPosition().getPositionList()
+    this.draw.getCursor().moveCursorToVisible({
+      cursorPosition: positionList[curIndex],
+      direction: MoveDirection.DOWN
+    })
+  }
+
+  public insertArea(payload: IInsertAreaOption) {
+    return this.draw.getArea().insertArea(payload)
+  }
+
+  public setAreaProperties(payload: ISetAreaPropertiesOption) {
+    this.draw.getArea().setAreaProperties(payload)
+  }
+
+  public locationArea(areaId: string) {
+    const context = this.draw.getArea().getContextByAreaId(areaId)
+    if (!context) return
+    const {
+      range: { endIndex },
+      elementPosition
+    } = context
+    this.position.setPositionContext({
+      isTable: false
+    })
+    this.range.setRange(endIndex, endIndex)
+    this.draw.render({
+      isSetCursor: false,
+      isCompute: false,
+      isSubmitHistory: false
+    })
+    // 移动到可见区域
+    const cursor = this.draw.getCursor()
+    this.position.setCursorPosition(elementPosition)
+    cursor.drawCursor({
+      hitLineStartIndex: endIndex
+    })
+    cursor.moveCursorToVisible({
+      cursorPosition: elementPosition,
+      direction: MoveDirection.UP
+    })
   }
 }

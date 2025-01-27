@@ -1,3 +1,5 @@
+import { VerticalAlign } from '../dataset/enum/VerticalAlign'
+
 export interface ICheckbox {
   value: boolean | null
   code?: string
@@ -10,5 +12,6 @@ export interface ICheckboxOption {
   gap?: number
   lineWidth?: number
   fillStyle?: string
-  fontStyle?: string
+  strokeStyle?: string
+  verticalAlign?: VerticalAlign
 }

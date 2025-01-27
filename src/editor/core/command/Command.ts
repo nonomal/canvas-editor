@@ -44,8 +44,11 @@ export class Command {
   public executeDeleteTable: CommandAdapt['deleteTable']
   public executeMergeTableCell: CommandAdapt['mergeTableCell']
   public executeCancelMergeTableCell: CommandAdapt['cancelMergeTableCell']
+  public executeSplitVerticalTableCell: CommandAdapt['splitVerticalTableCell']
+  public executeSplitHorizontalTableCell: CommandAdapt['splitHorizontalTableCell']
   public executeTableTdVerticalAlign: CommandAdapt['tableTdVerticalAlign']
   public executeTableBorderType: CommandAdapt['tableBorderType']
+  public executeTableBorderColor: CommandAdapt['tableBorderColor']
   public executeTableTdBorderType: CommandAdapt['tableTdBorderType']
   public executeTableTdSlashType: CommandAdapt['tableTdSlashType']
   public executeTableTdBackgroundColor: CommandAdapt['tableTdBackgroundColor']
@@ -68,14 +71,21 @@ export class Command {
   public executeSaveAsImageElement: CommandAdapt['saveAsImageElement']
   public executeChangeImageDisplay: CommandAdapt['changeImageDisplay']
   public executePageMode: CommandAdapt['pageMode']
+  public executePageScale: CommandAdapt['pageScale']
   public executePageScaleRecovery: CommandAdapt['pageScaleRecovery']
   public executePageScaleMinus: CommandAdapt['pageScaleMinus']
   public executePageScaleAdd: CommandAdapt['pageScaleAdd']
   public executePaperSize: CommandAdapt['paperSize']
   public executePaperDirection: CommandAdapt['paperDirection']
   public executeSetPaperMargin: CommandAdapt['setPaperMargin']
+  public executeSetMainBadge: CommandAdapt['setMainBadge']
+  public executeSetAreaBadge: CommandAdapt['setAreaBadge']
   public executeInsertElementList: CommandAdapt['insertElementList']
+  public executeInsertArea: CommandAdapt['insertArea']
+  public executeSetAreaProperties: CommandAdapt['setAreaProperties']
+  public executeLocationArea: CommandAdapt['locationArea']
   public executeAppendElementList: CommandAdapt['appendElementList']
+  public executeUpdateElementById: CommandAdapt['updateElementById']
   public executeSetValue: CommandAdapt['setValue']
   public executeRemoveControl: CommandAdapt['removeControl']
   public executeSetLocale: CommandAdapt['setLocale']
@@ -90,19 +100,27 @@ export class Command {
   public executeSetControlExtension: CommandAdapt['setControlExtension']
   public executeSetControlProperties: CommandAdapt['setControlProperties']
   public executeSetControlHighlight: CommandAdapt['setControlHighlight']
+  public executeLocationControl: CommandAdapt['locationControl']
+  public executeInsertControl: CommandAdapt['insertControl']
+  public executeUpdateOptions: CommandAdapt['updateOptions']
+  public executeInsertTitle: CommandAdapt['insertTitle']
+  public executeFocus: CommandAdapt['focus']
   public getCatalog: CommandAdapt['getCatalog']
   public getImage: CommandAdapt['getImage']
   public getOptions: CommandAdapt['getOptions']
   public getValue: CommandAdapt['getValue']
+  public getAreaValue: CommandAdapt['getAreaValue']
   public getHTML: CommandAdapt['getHTML']
   public getText: CommandAdapt['getText']
   public getWordCount: CommandAdapt['getWordCount']
+  public getCursorPosition: CommandAdapt['getCursorPosition']
   public getRange: CommandAdapt['getRange']
   public getRangeText: CommandAdapt['getRangeText']
   public getRangeContext: CommandAdapt['getRangeContext']
   public getRangeRow: CommandAdapt['getRangeRow']
   public getRangeParagraph: CommandAdapt['getRangeParagraph']
   public getKeywordRangeList: CommandAdapt['getKeywordRangeList']
+  public getKeywordContext: CommandAdapt['getKeywordContext']
   public getPaperMargin: CommandAdapt['getPaperMargin']
   public getSearchNavigateInfo: CommandAdapt['getSearchNavigateInfo']
   public getLocale: CommandAdapt['getLocale']
@@ -110,6 +128,9 @@ export class Command {
   public getControlValue: CommandAdapt['getControlValue']
   public getControlList: CommandAdapt['getControlList']
   public getContainer: CommandAdapt['getContainer']
+  public getTitleValue: CommandAdapt['getTitleValue']
+  public getPositionContextByEvent: CommandAdapt['getPositionContextByEvent']
+  public getElementById: CommandAdapt['getElementById']
 
   constructor(adapt: CommandAdapt) {
     // 全局命令
@@ -159,8 +180,13 @@ export class Command {
     this.executeDeleteTable = adapt.deleteTable.bind(adapt)
     this.executeMergeTableCell = adapt.mergeTableCell.bind(adapt)
     this.executeCancelMergeTableCell = adapt.cancelMergeTableCell.bind(adapt)
+    this.executeSplitVerticalTableCell =
+      adapt.splitVerticalTableCell.bind(adapt)
+    this.executeSplitHorizontalTableCell =
+      adapt.splitHorizontalTableCell.bind(adapt)
     this.executeTableTdVerticalAlign = adapt.tableTdVerticalAlign.bind(adapt)
     this.executeTableBorderType = adapt.tableBorderType.bind(adapt)
+    this.executeTableBorderColor = adapt.tableBorderColor.bind(adapt)
     this.executeTableTdBorderType = adapt.tableTdBorderType.bind(adapt)
     this.executeTableTdSlashType = adapt.tableTdSlashType.bind(adapt)
     this.executeTableTdBackgroundColor =
@@ -185,15 +211,25 @@ export class Command {
     this.executeChangeImageDisplay = adapt.changeImageDisplay.bind(adapt)
     // 页面模式、页面缩放、纸张大小、纸张方向、页边距
     this.executePageMode = adapt.pageMode.bind(adapt)
+    this.executePageScale = adapt.pageScale.bind(adapt)
     this.executePageScaleRecovery = adapt.pageScaleRecovery.bind(adapt)
     this.executePageScaleMinus = adapt.pageScaleMinus.bind(adapt)
     this.executePageScaleAdd = adapt.pageScaleAdd.bind(adapt)
     this.executePaperSize = adapt.paperSize.bind(adapt)
     this.executePaperDirection = adapt.paperDirection.bind(adapt)
     this.executeSetPaperMargin = adapt.setPaperMargin.bind(adapt)
+    // 签章
+    this.executeSetMainBadge = adapt.setMainBadge.bind(adapt)
+    this.executeSetAreaBadge = adapt.setAreaBadge.bind(adapt)
+    // 区域
+    this.getAreaValue = adapt.getAreaValue.bind(adapt)
+    this.executeInsertArea = adapt.insertArea.bind(adapt)
+    this.executeSetAreaProperties = adapt.setAreaProperties.bind(adapt)
+    this.executeLocationArea = adapt.locationArea.bind(adapt)
     // 通用
     this.executeInsertElementList = adapt.insertElementList.bind(adapt)
     this.executeAppendElementList = adapt.appendElementList.bind(adapt)
+    this.executeUpdateElementById = adapt.updateElementById.bind(adapt)
     this.executeSetValue = adapt.setValue.bind(adapt)
     this.executeRemoveControl = adapt.removeControl.bind(adapt)
     this.executeSetLocale = adapt.setLocale.bind(adapt)
@@ -204,6 +240,9 @@ export class Command {
     this.executeDeleteGroup = adapt.deleteGroup.bind(adapt)
     this.executeLocationGroup = adapt.locationGroup.bind(adapt)
     this.executeSetZone = adapt.setZone.bind(adapt)
+    this.executeUpdateOptions = adapt.updateOptions.bind(adapt)
+    this.executeInsertTitle = adapt.insertTitle.bind(adapt)
+    this.executeFocus = adapt.focus.bind(adapt)
     // 获取
     this.getImage = adapt.getImage.bind(adapt)
     this.getOptions = adapt.getOptions.bind(adapt)
@@ -211,18 +250,23 @@ export class Command {
     this.getHTML = adapt.getHTML.bind(adapt)
     this.getText = adapt.getText.bind(adapt)
     this.getWordCount = adapt.getWordCount.bind(adapt)
+    this.getCursorPosition = adapt.getCursorPosition.bind(adapt)
     this.getRange = adapt.getRange.bind(adapt)
     this.getRangeText = adapt.getRangeText.bind(adapt)
     this.getRangeContext = adapt.getRangeContext.bind(adapt)
     this.getRangeRow = adapt.getRangeRow.bind(adapt)
     this.getRangeParagraph = adapt.getRangeParagraph.bind(adapt)
     this.getKeywordRangeList = adapt.getKeywordRangeList.bind(adapt)
+    this.getKeywordContext = adapt.getKeywordContext.bind(adapt)
     this.getCatalog = adapt.getCatalog.bind(adapt)
     this.getPaperMargin = adapt.getPaperMargin.bind(adapt)
     this.getSearchNavigateInfo = adapt.getSearchNavigateInfo.bind(adapt)
     this.getLocale = adapt.getLocale.bind(adapt)
     this.getGroupIds = adapt.getGroupIds.bind(adapt)
     this.getContainer = adapt.getContainer.bind(adapt)
+    this.getTitleValue = adapt.getTitleValue.bind(adapt)
+    this.getPositionContextByEvent = adapt.getPositionContextByEvent.bind(adapt)
+    this.getElementById = adapt.getElementById.bind(adapt)
     // 控件
     this.executeSetControlValue = adapt.setControlValue.bind(adapt)
     this.executeSetControlExtension = adapt.setControlExtension.bind(adapt)
@@ -230,5 +274,7 @@ export class Command {
     this.executeSetControlHighlight = adapt.setControlHighlight.bind(adapt)
     this.getControlValue = adapt.getControlValue.bind(adapt)
     this.getControlList = adapt.getControlList.bind(adapt)
+    this.executeLocationControl = adapt.locationControl.bind(adapt)
+    this.executeInsertControl = adapt.insertControl.bind(adapt)
   }
 }

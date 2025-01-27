@@ -9,12 +9,16 @@ import { IElement } from '../../../../interface/Element'
 import { Control } from '../Control'
 
 export class CheckboxControl implements IControlInstance {
-  private element: IElement
-  private control: Control
+  protected element: IElement
+  protected control: Control
 
   constructor(element: IElement, control: Control) {
     this.element = element
     this.control = control
+  }
+
+  public setElement(element: IElement) {
+    this.element = element
   }
 
   public getElement(): IElement {
@@ -36,7 +40,8 @@ export class CheckboxControl implements IControlInstance {
       const preElement = elementList[preIndex]
       if (
         preElement.controlId !== startElement.controlId ||
-        preElement.controlComponent === ControlComponent.PREFIX
+        preElement.controlComponent === ControlComponent.PREFIX ||
+        preElement.controlComponent === ControlComponent.PRE_TEXT
       ) {
         break
       }
@@ -51,7 +56,8 @@ export class CheckboxControl implements IControlInstance {
       const nextElement = elementList[nextIndex]
       if (
         nextElement.controlId !== startElement.controlId ||
-        nextElement.controlComponent === ControlComponent.POSTFIX
+        nextElement.controlComponent === ControlComponent.POSTFIX ||
+        nextElement.controlComponent === ControlComponent.POST_TEXT
       ) {
         break
       }
@@ -73,7 +79,10 @@ export class CheckboxControl implements IControlInstance {
     options: IControlRuleOption = {}
   ) {
     // 校验是否可以设置
-    if (!options.isIgnoreDisabledRule && this.control.isDisabledControl()) {
+    if (
+      !options.isIgnoreDisabledRule &&
+      this.control.getIsDisabledControl(context)
+    ) {
       return
     }
     const { control } = this.element
@@ -86,7 +95,8 @@ export class CheckboxControl implements IControlInstance {
       const preElement = elementList[preIndex]
       if (
         preElement.controlId !== startElement.controlId ||
-        preElement.controlComponent === ControlComponent.PREFIX
+        preElement.controlComponent === ControlComponent.PREFIX ||
+        preElement.controlComponent === ControlComponent.PRE_TEXT
       ) {
         break
       }
@@ -102,7 +112,8 @@ export class CheckboxControl implements IControlInstance {
       const nextElement = elementList[nextIndex]
       if (
         nextElement.controlId !== startElement.controlId ||
-        nextElement.controlComponent === ControlComponent.POSTFIX
+        nextElement.controlComponent === ControlComponent.POSTFIX ||
+        nextElement.controlComponent === ControlComponent.POST_TEXT
       ) {
         break
       }
@@ -113,11 +124,17 @@ export class CheckboxControl implements IControlInstance {
       nextIndex++
     }
     control!.code = codes.join(',')
-    this.control.repaintControl()
+    this.control.repaintControl({
+      curIndex: startIndex,
+      isSetCursor: false
+    })
+    this.control.emitControlContentChange({
+      context
+    })
   }
 
   public keydown(evt: KeyboardEvent): number | null {
-    if (this.control.isDisabledControl()) {
+    if (this.control.getIsDisabledControl()) {
       return null
     }
     const range = this.control.getRange()

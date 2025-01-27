@@ -36,7 +36,7 @@ instance.command.executeCut()
 用法：
 
 ```javascript
-instance.command.executeCopy()
+instance.command.executeCopy(payload?: ICopyOption)
 ```
 
 ## executePaste
@@ -437,6 +437,26 @@ instance.command.executeMergeTableCell()
 instance.command.executeCancelMergeTableCell()
 ```
 
+## executeSplitVerticalTableCell
+
+功能：分隔当前单元格（垂直方向）
+
+用法：
+
+```javascript
+instance.command.executeSplitVerticalTableCell()
+```
+
+## executeSplitHorizontalTableCell
+
+功能：分隔当前单元格（水平方向）
+
+用法：
+
+```javascript
+instance.command.executeSplitHorizontalTableCell()
+```
+
 ## executeTableTdVerticalAlign
 
 功能：表格单元格垂直对齐方式
@@ -455,6 +475,16 @@ instance.command.executeTableTdVerticalAlign(payload: VerticalAlign)
 
 ```javascript
 instance.command.executeTableBorderType(payload: TableBorder)
+```
+
+## executeTableBorderColor
+
+功能：表格边框颜色
+
+用法：
+
+```javascript
+instance.command.executeTableBorderColor(payload: string)
 ```
 
 ## executeTableTdBorderType
@@ -639,7 +669,7 @@ instance.command.executeSearchNavigateNext()
 用法：
 
 ```javascript
-instance.command.executeReplace(newWord: string)
+instance.command.executeReplace(newWord: string, option?: IReplaceOption)
 ```
 
 ## executePrint
@@ -679,7 +709,7 @@ instance.command.executeSaveAsImageElement()
 用法：
 
 ```javascript
-instance.command.executeSaveAsImageElement(element: IElement, display: ImageDisplay)
+instance.command.executeChangeImageDisplay(element: IElement, display: ImageDisplay)
 ```
 
 ## executePageMode
@@ -690,6 +720,16 @@ instance.command.executeSaveAsImageElement(element: IElement, display: ImageDisp
 
 ```javascript
 instance.command.executePageMode(pageMode: PageMode)
+```
+
+## executePageScale
+
+功能：设置缩放比例
+
+用法：
+
+```javascript
+instance.command.executePageScale(scale: number)
 ```
 
 ## executePageScaleRecovery
@@ -752,6 +792,26 @@ instance.command.executePaperDirection(paperDirection: PaperDirection)
 instance.command.executeSetPaperMargin([top: number, right: number, bottom: number, left: number])
 ```
 
+## executeSetMainBadge
+
+功能：设置正文徽章
+
+用法：
+
+```javascript
+instance.command.executeSetMainBadge(payload: IBadge | null)
+```
+
+## executeSetAreaBadge
+
+功能：设置区域徽章
+
+用法：
+
+```javascript
+instance.command.executeSetAreaBadge(payload: IAreaBadge[])
+```
+
 ## executeInsertElementList
 
 功能：插入元素
@@ -772,6 +832,16 @@ instance.command.executeInsertElementList(elementList: IElement[])
 instance.command.executeAppendElementList(elementList: IElement[], options?: IAppendElementListOption)
 ```
 
+## executeUpdateElementById
+
+功能：根据 id 修改元素属性
+
+用法：
+
+```javascript
+instance.command.executeUpdateElementById(payload: IUpdateElementByIdOption)
+```
+
 ## executeSetValue
 
 功能：设置编辑器数据
@@ -779,7 +849,7 @@ instance.command.executeAppendElementList(elementList: IElement[], options?: IAp
 用法：
 
 ```javascript
-instance.command.executeSetValue(payload: Partial<IEditorData>)
+instance.command.executeSetValue(payload: Partial<IEditorData>, options?: ISetValueOption)
 ```
 
 ## executeRemoveControl
@@ -789,7 +859,7 @@ instance.command.executeSetValue(payload: Partial<IEditorData>)
 用法：
 
 ```javascript
-instance.command.executeRemoveControl()
+instance.command.executeRemoveControl(payload?: IRemoveControlOption)
 ```
 
 ## executeSetLocale
@@ -910,4 +980,78 @@ instance.command.executeSetControlProperties(payload: ISetControlProperties)
 
 ```javascript
 instance.command.executeSetControlHighlight(payload: ISetControlHighlightOption)
+```
+
+## executeLocationControl
+
+功能：定位并激活控件
+
+用法：
+
+```javascript
+instance.command.executeLocationControl(controlId: string, options?: ILocationControlOption)
+```
+
+## executeInsertControl
+
+功能：插入控件
+
+用法：
+
+```javascript
+instance.command.executeInsertControl(payload: IElement)
+```
+
+## executeUpdateOptions
+
+功能：修改配置
+
+用法：
+
+```javascript
+instance.command.executeUpdateOptions(payload: IUpdateOption)
+```
+
+## executeInsertTitle
+
+功能：插入标题
+
+用法：
+
+```javascript
+instance.command.executeInsertTitle(payload: IElement)
+```
+
+## executeFocus
+
+功能：光标聚焦
+
+用法：
+
+```javascript
+instance.command.executeFocus(payload?: IFocusOption)
+```
+
+## executeInsertArea
+
+功能： 插入区域
+
+```js
+const areaId = instance.command.executeInsertArea(payload: IInsertAreaOption)
+```
+
+## executeSetAreaProperties
+
+功能：设置区域属性
+
+```js
+instance.command.executeSetAreaProperties(payload: ISetAreaPropertiesOption)
+```
+
+## executeLocationArea
+
+功能：定位区域位置
+
+```js
+instance.command.executeLocationArea(areaId: string)
 ```

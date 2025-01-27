@@ -6,6 +6,7 @@ import { ICursorOption } from '../../interface/Cursor'
 import { IEditorOption } from '../../interface/Editor'
 import { IElementPosition } from '../../interface/Element'
 import { findScrollContainer } from '../../utils'
+import { isMobile } from '../../utils/ua'
 import { Draw } from '../draw/Draw'
 import { CanvasEvent } from '../event/CanvasEvent'
 import { Position } from '../position/Position'
@@ -90,6 +91,17 @@ export class Cursor {
     }
   }
 
+  public focus() {
+    // 移动端只读模式禁用聚焦避免唤起输入法，web端允许聚焦避免事件无法捕获
+    if (isMobile && this.draw.isReadonly()) return
+    const agentCursorDom = this.cursorAgent.getAgentCursorDom()
+    // 光标不聚焦时重新定位
+    if (document.activeElement !== agentCursorDom) {
+      agentCursorDom.focus()
+      agentCursorDom.setSelectionRange(0, 0)
+    }
+  }
+
   public drawCursor(payload?: IDrawCursorOption) {
     let cursorPosition = this.position.getCursorPosition()
     if (!cursorPosition) return
@@ -129,8 +141,7 @@ export class Cursor {
     const agentCursorDom = this.cursorAgent.getAgentCursorDom()
     if (isFocus) {
       setTimeout(() => {
-        agentCursorDom.focus()
-        agentCursorDom.setSelectionRange(0, 0)
+        this.focus()
       })
     }
     // fillText位置 + 文字基线到底部距离 - 模拟光标偏移量
@@ -144,7 +155,10 @@ export class Cursor {
       cursorTop + cursorHeight - defaultOffsetHeight
     }px`
     // 模拟光标显示
-    if (!isShow) return
+    if (!isShow) {
+      this.recoveryCursor()
+      return
+    }
     const isReadonly = this.draw.isReadonly()
     this.cursorDom.style.width = `${width * scale}px`
     this.cursorDom.style.backgroundColor = color

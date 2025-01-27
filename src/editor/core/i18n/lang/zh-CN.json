@@ -22,6 +22,7 @@
       "textWrapType": {
         "embed": "嵌入型",
         "upDown": "上下型环绕",
+        "surround": "四周型环绕",
         "floatTop": "浮于文字上方",
         "floatBottom": "衬于文字下方"
       }
@@ -45,7 +46,9 @@
       "border": "表格边框",
       "borderAll": "所有框线",
       "borderEmpty": "无框线",
+      "borderDash": "虚框线",
       "borderExternal": "外侧框线",
+      "borderInternal": "内侧框线",
       "borderTd": "单元格边框",
       "borderTdTop": "上边框",
       "borderTdRight": "右边框",

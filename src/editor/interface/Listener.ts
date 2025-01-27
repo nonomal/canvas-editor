@@ -7,8 +7,9 @@ import {
   TitleLevel
 } from '..'
 import { RowFlex } from '../dataset/enum/Row'
-import { IControl } from './Control'
+import { IControlChangeResult, IControlContentChangeResult } from './Control'
 import { IEditorResult } from './Editor'
+import { IPositionContext } from './Position'
 import { ITextDecoration } from './Text'
 
 export interface IRangeStyle {
@@ -32,6 +33,7 @@ export interface IRangeStyle {
   listStyle: ListStyle | null
   groupIds: string[] | null
   textDecoration: ITextDecoration | null
+  extension?: unknown | null
 }
 
 export type IRangeStyleChange = (payload: IRangeStyle) => void
@@ -48,8 +50,23 @@ export type ISaved = (payload: IEditorResult) => void
 
 export type IContentChange = () => void
 
-export type IControlChange = (payload: IControl | null) => void
+export type IControlChange = (payload: IControlChangeResult) => void
+
+export type IControlContentChange = (
+  payload: IControlContentChangeResult
+) => void
 
 export type IPageModeChange = (payload: PageMode) => void
 
 export type IZoneChange = (payload: EditorZone) => void
+
+export type IMouseEventChange = (evt: MouseEvent) => void
+
+export interface IPositionContextChangePayload {
+  value: IPositionContext
+  oldValue: IPositionContext
+}
+
+export type IPositionContextChange = (
+  payload: IPositionContextChangePayload
+) => void

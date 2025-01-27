@@ -32,11 +32,10 @@
           <div class="options">
             <ul>
               <li data-family="Microsoft YaHei" style="font-family:'Microsoft YaHei';">微软雅黑</li>
-              <li data-family="宋体" style="font-family:'宋体';">宋体</li>
-              <li data-family="黑体" style="font-family:'黑体';">黑体</li>
-              <li data-family="仿宋" style="font-family:'仿宋';">仿宋</li>
-              <li data-family="楷体" style="font-family:'楷体';">楷体</li>
-              <li data-family="等线" style="font-family:'等线';">等线</li>
+              <li data-family="华文宋体" style="font-family:'华文宋体';">华文宋体</li>
+              <li data-family="华文黑体" style="font-family:'华文黑体';">华文黑体</li>
+              <li data-family="华文仿宋" style="font-family:'华文仿宋';">华文仿宋</li>
+              <li data-family="华文楷体" style="font-family:'华文楷体';">华文楷体</li>
               <li data-family="华文琥珀" style="font-family:'华文琥珀';">华文琥珀</li>
               <li data-family="华文楷体" style="font-family:'华文楷体';">华文楷体</li>
               <li data-family="华文隶书" style="font-family:'华文隶书';">华文隶书</li>
@@ -158,6 +157,9 @@
         <div class="menu-item__alignment">
           <i></i>
         </div>
+        <div class="menu-item__justify">
+          <i></i>
+        </div>
         <div class="menu-item__row-margin">
           <i title="行间距"></i>
           <div class="options">
@@ -185,6 +187,12 @@
                   <li>________</li>
                 </ol>
               </li>
+              <li data-list-type="ul" data-list-style='checkbox'>
+                <label>复选框列表：</label>
+                <ul style="list-style-type: '☑️ ';">
+                  <li>________</li>
+                </ul>
+              </li>
               <li data-list-type="ul" data-list-style='disc'>
                 <label>实心圆点列表：</label>
                 <ul style="list-style-type: disc;">
@@ -199,7 +207,7 @@
               </li>
               <li data-list-type="ul" data-list-style='square'>
                 <label>空心方块列表：</label>
-                <ul style="list-style-type: square;">
+                <ul style="list-style-type: '☐ ';">
                   <li>________</li>
                 </ul>
               </li>
@@ -272,12 +280,18 @@
           <div class="options">
             <ul>
               <li data-control='text'>文本</li>
+              <li data-control="number">数值</li>
               <li data-control="select">列举</li>
+              <li data-control="date">日期</li>
               <li data-control="checkbox">复选框</li>
+              <li data-control="radio">单选框</li>
             </ul>
           </div>
         </div>
         <div class="menu-item__checkbox" title="复选框">
+          <i></i>
+        </div>
+        <div class="menu-item__radio" title="单选框">
           <i></i>
         </div>
         <div class="menu-item__latex" title="LateX">
@@ -352,7 +366,7 @@
         <span>页面：<span class="page-no">1</span>/<span class="page-size">1</span></span>
         <span>字数：<span class="word-count">0</span></span>
       </div>
-      <div class="editor-mode" title="编辑模式(编辑、清洁、只读、表单)">编辑模式</div>
+      <div class="editor-mode" title="编辑模式(编辑、清洁、只读、表单、设计)">编辑模式</div>
       <div>
         <div class="page-scale-minus" title="缩小(Ctrl+-)">
           <i></i>
@@ -391,6 +405,9 @@
           <i></i>
         </div>
         <div class="fullscreen" title="全屏显示">
+          <i></i>
+        </div>
+        <div class="editor-option" title="编辑器设置">
           <i></i>
         </div>
       </div>

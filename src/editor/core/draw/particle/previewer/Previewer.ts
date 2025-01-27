@@ -71,7 +71,8 @@ export class Previewer {
     let y = 0
     const height = this.draw.getHeight()
     const pageGap = this.draw.getPageGap()
-    const preY = this.draw.getPageNo() * (height + pageGap)
+    const pageNo = position?.pageNo ?? this.draw.getPageNo()
+    const preY = pageNo * (height + pageGap)
     // 优先使用浮动位置
     if (element.imgFloatPosition) {
       x = element.imgFloatPosition.x!
@@ -90,11 +91,13 @@ export class Previewer {
   }
 
   private _createResizerDom(): IPreviewerCreateResult {
+    const { scale } = this.options
     // 拖拽边框
     const resizerSelection = document.createElement('div')
     resizerSelection.classList.add(`${EDITOR_PREFIX}-resizer-selection`)
     resizerSelection.style.display = 'none'
     resizerSelection.style.borderColor = this.options.resizerColor
+    resizerSelection.style.borderWidth = `${scale}px`
     // 拖拽点
     const resizerHandleList: HTMLDivElement[] = []
     for (let i = 0; i < 8; i++) {
@@ -169,15 +172,13 @@ export class Previewer {
       'mouseup',
       () => {
         // 改变尺寸
-        if (this.curElement) {
+        if (this.curElement && !this.previewerDrawOption.dragDisable) {
           this.curElement.width = this.width
           this.curElement.height = this.height
-          this.draw.render({ isSetCursor: false })
-          this.drawResizer(
-            this.curElement,
-            this.curPosition,
-            this.previewerDrawOption
-          )
+          this.draw.render({
+            isSetCursor: true,
+            curIndex: this.curPosition?.index
+          })
         }
         // 还原副作用
         this.resizerImageContainer.style.display = 'none'
@@ -193,7 +194,7 @@ export class Previewer {
   }
 
   private _mousemove(evt: MouseEvent) {
-    if (!this.curElement) return
+    if (!this.curElement || this.previewerDrawOption.dragDisable) return
     const { scale } = this.options
     let dx = 0
     let dy = 0
@@ -354,6 +355,7 @@ export class Previewer {
     }
     previewerContainer.onwheel = evt => {
       evt.preventDefault()
+      evt.stopPropagation()
       if (evt.deltaY < 0) {
         // 放大
         scaleSize += 0.1
@@ -387,7 +389,8 @@ export class Previewer {
   }
 
   public _updateResizerRect(width: number, height: number) {
-    const handleSize = this.options.resizerSize
+    const { resizerSize: handleSize, scale } = this.options
+    const isReadonly = this.draw.isReadonly()
     this.resizerSelection.style.width = `${width}px`
     this.resizerSelection.style.height = `${height}px`
     // handle
@@ -404,8 +407,10 @@ export class Previewer {
           : i === 3 || i === 7
           ? height / 2 - handleSize
           : height - handleSize
+      this.resizerHandleList[i].style.transform = `scale(${scale})`
       this.resizerHandleList[i].style.left = `${left}px`
       this.resizerHandleList[i].style.top = `${top}px`
+      this.resizerHandleList[i].style.display = isReadonly ? 'none' : 'block'
     }
   }
 
@@ -423,7 +428,19 @@ export class Previewer {
     position: IElementPosition | null = null,
     options: IPreviewerDrawOption = {}
   ) {
+    // 缓存配置
     this.previewerDrawOption = options
+    this.curElementSrc = element[options.srcKey || 'value'] || ''
+    // 更新渲染尺寸及位置
+    this.updateResizer(element, position)
+    // 监听事件
+    document.addEventListener('keydown', this._keydown)
+  }
+
+  public updateResizer(
+    element: IElement,
+    position: IElementPosition | null = null
+  ) {
     const { scale } = this.options
     const elementWidth = element.width! * scale
     const elementHeight = element.height! * scale
@@ -436,15 +453,15 @@ export class Previewer {
     )
     this.resizerSelection.style.left = `${resizerLeft}px`
     this.resizerSelection.style.top = `${resizerTop}px`
+    this.resizerSelection.style.borderWidth = `${scale}px`
     // 更新预览包围框尺寸
     this._updateResizerRect(elementWidth, elementHeight)
     this.resizerSelection.style.display = 'block'
+    // 缓存基础信息
     this.curElement = element
-    this.curElementSrc = element[options.srcKey || 'value'] || ''
     this.curPosition = position
-    this.width = this.curElement.width! * scale
-    this.height = this.curElement.height! * scale
-    document.addEventListener('keydown', this._keydown)
+    this.width = elementWidth
+    this.height = elementHeight
   }
 
   public clearResizer() {

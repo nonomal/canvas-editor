@@ -1,18 +1,20 @@
-import { IElement } from '..'
+import { IElement, LocationPosition } from '..'
 import {
   EditorMode,
   PageMode,
   PaperDirection,
+  RenderMode,
   WordBreak
 } from '../dataset/enum/Editor'
 import { IBackgroundOption } from './Background'
 import { ICheckboxOption } from './Checkbox'
-import { IPadding } from './Common'
+import { IRadioOption } from './Radio'
 import { IControlOption } from './Control'
 import { ICursorOption } from './Cursor'
 import { IFooter } from './Footer'
 import { IGroup } from './Group'
 import { IHeader } from './Header'
+import { ILineBreakOption } from './LineBreak'
 import { IMargin } from './Margin'
 import { IPageBreak } from './PageBreak'
 import { IPageNumber } from './PageNumber'
@@ -20,6 +22,11 @@ import { IPlaceholder } from './Placeholder'
 import { ITitleOption } from './Title'
 import { IWatermark } from './Watermark'
 import { IZoneOption } from './Zone'
+import { ISeparatorOption } from './Separator'
+import { ITableOption } from './table/Table'
+import { ILineNumberOption } from './LineNumber'
+import { IPageBorderOption } from './PageBorder'
+import { IBadgeOption } from './Badge'
 
 export interface IEditorData {
   header?: IElement[]
@@ -57,9 +64,7 @@ export interface IEditorOption {
   marginIndicatorColor?: string
   margins?: IMargin
   pageMode?: PageMode
-  tdPadding?: IPadding
-  defaultTrMinHeight?: number
-  defaultColMinWidth?: number
+  renderMode?: RenderMode
   defaultHyperlinkColor?: string
   paperDirection?: PaperDirection
   inactiveAlpha?: number
@@ -70,12 +75,14 @@ export interface IEditorOption {
   contextMenuDisableKeys?: string[]
   scrollContainerSelector?: string
   wordBreak?: WordBreak
+  table?: ITableOption
   header?: IHeader
   footer?: IFooter
   pageNumber?: IPageNumber
   watermark?: IWatermark
   control?: IControlOption
   checkbox?: ICheckboxOption
+  radio?: IRadioOption
   cursor?: ICursorOption
   title?: ITitleOption
   placeholder?: IPlaceholder
@@ -83,15 +90,17 @@ export interface IEditorOption {
   pageBreak?: IPageBreak
   zone?: IZoneOption
   background?: IBackgroundOption
+  lineBreak?: ILineBreakOption
+  separator?: ISeparatorOption
+  lineNumber?: ILineNumberOption
+  pageBorder?: IPageBorderOption
+  badge?: IBadgeOption
 }
 
 export interface IEditorResult {
   version: string
-  width: number
-  height: number
-  margins: IMargin
-  watermark?: IWatermark
   data: IEditorData
+  options: IEditorOption
 }
 
 export interface IEditorHTML {
@@ -101,3 +110,24 @@ export interface IEditorHTML {
 }
 
 export type IEditorText = IEditorHTML
+
+export type IUpdateOption = Omit<
+  IEditorOption,
+  | 'mode'
+  | 'width'
+  | 'height'
+  | 'scale'
+  | 'pageGap'
+  | 'pageMode'
+  | 'paperDirection'
+  | 'historyMaxRecordCount'
+  | 'scrollContainerSelector'
+>
+
+export interface ISetValueOption {
+  isSetCursor?: boolean
+}
+
+export interface IFocusOption {
+  position?: LocationPosition
+}

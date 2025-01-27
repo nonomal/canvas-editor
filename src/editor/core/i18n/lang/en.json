@@ -22,6 +22,7 @@
       "textWrapType": {
         "embed": "Embed",
         "upDown": "Up down",
+        "surround": "Surround",
         "floatTop": "Float above text",
         "floatBottom": "Float below text"
       }
@@ -45,7 +46,9 @@
       "border": "Table border",
       "borderAll": "All",
       "borderEmpty": "Empty",
+      "borderDash": "Dash",
       "borderExternal": "External",
+      "borderInternal": "Internal",
       "borderTd": "Table cell border",
       "borderTdTop": "Top",
       "borderTdRight": "Right",

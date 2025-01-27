@@ -10,6 +10,7 @@ import { Previewer } from '../draw/particle/previewer/Previewer'
 import { TableTool } from '../draw/particle/table/TableTool'
 import { RangeManager } from '../range/RangeManager'
 import { CanvasEvent } from './CanvasEvent'
+import { ImageParticle } from '../draw/particle/ImageParticle'
 
 export class GlobalEvent {
   private draw: Draw
@@ -22,6 +23,7 @@ export class GlobalEvent {
   private hyperlinkParticle: HyperlinkParticle
   private control: Control
   private dateParticle: DateParticle
+  private imageParticle: ImageParticle
   private dprMediaQueryList: MediaQueryList
 
   constructor(draw: Draw, canvasEvent: CanvasEvent) {
@@ -34,6 +36,7 @@ export class GlobalEvent {
     this.tableTool = draw.getTableTool()
     this.hyperlinkParticle = draw.getHyperlinkParticle()
     this.dateParticle = draw.getDateParticle()
+    this.imageParticle = draw.getImageParticle()
     this.control = draw.getControl()
     this.dprMediaQueryList = window.matchMedia(
       `(resolution: ${window.devicePixelRatio}dppx)`
@@ -101,6 +104,7 @@ export class GlobalEvent {
     this.hyperlinkParticle.clearHyperlinkPopup()
     this.control.destroyControl()
     this.dateParticle.clearDatePicker()
+    this.imageParticle.destroyFloatImage()
   }
 
   public setCanvasEventAbility = () => {
@@ -146,10 +150,19 @@ export class GlobalEvent {
   }
 
   private _handleVisibilityChange = () => {
-    if (document.visibilityState) {
-      const isCollapsed = this.range.getIsCollapsed()
-      this.cursor?.drawCursor({
-        isShow: isCollapsed
+    if (document.visibilityState === 'visible') {
+      // 页面可见时重新渲染激活页面
+      const range = this.range.getRange()
+      const isSetCursor =
+        !!~range.startIndex &&
+        !!~range.endIndex &&
+        range.startIndex === range.endIndex
+      this.range.replaceRange(range)
+      this.draw.render({
+        isSetCursor,
+        isCompute: false,
+        isSubmitHistory: false,
+        curIndex: range.startIndex
       })
     }
   }

@@ -4,6 +4,7 @@ import prism from 'prismjs'
 import Editor, {
   BlockType,
   Command,
+  ControlState,
   ControlType,
   EditorMode,
   EditorZone,
@@ -313,6 +314,15 @@ window.onload = function () {
     instance.command.executeRowFlex(RowFlex.ALIGNMENT)
   }
 
+  const justifyDom = document.querySelector<HTMLDivElement>(
+    '.menu-item__justify'
+  )!
+  justifyDom.title = `分散对齐(${isApple ? '⌘' : 'Ctrl'}+Shift+J)`
+  justifyDom.onclick = function () {
+    console.log('justify')
+    instance.command.executeRowFlex(RowFlex.JUSTIFY)
+  }
+
   const rowMarginDom = document.querySelector<HTMLDivElement>(
     '.menu-item__row-margin'
   )!
@@ -552,6 +562,44 @@ window.onload = function () {
             name: 'size',
             required: true,
             value: '120'
+          },
+          {
+            type: 'number',
+            label: '透明度',
+            name: 'opacity',
+            required: true,
+            value: '0.3'
+          },
+          {
+            type: 'select',
+            label: '重复',
+            name: 'repeat',
+            value: '0',
+            required: false,
+            options: [
+              {
+                label: '不重复',
+                value: '0'
+              },
+              {
+                label: '重复',
+                value: '1'
+              }
+            ]
+          },
+          {
+            type: 'number',
+            label: '水平间隔',
+            name: 'horizontalGap',
+            required: false,
+            value: '10'
+          },
+          {
+            type: 'number',
+            label: '垂直间隔',
+            name: 'verticalGap',
+            required: false,
+            value: '10'
           }
         ],
         onConfirm: payload => {
@@ -561,10 +609,20 @@ window.onload = function () {
             pre[cur.name] = cur.value
             return pre
           }, <any>{})
+          const repeat = watermark.repeat === '1'
           instance.command.executeAddWatermark({
             data: watermark.data,
             color: watermark.color,
-            size: Number(watermark.size)
+            size: Number(watermark.size),
+            opacity: Number(watermark.opacity),
+            repeat,
+            gap:
+              repeat && watermark.horizontalGap && watermark.verticalGap
+                ? [
+                    Number(watermark.horizontalGap),
+                    Number(watermark.verticalGap)
+                  ]
+                : undefined
           })
         }
       })
@@ -660,23 +718,21 @@ window.onload = function () {
             )?.value
             if (!placeholder) return
             const value = payload.find(p => p.name === 'value')?.value || ''
-            instance.command.executeInsertElementList([
-              {
-                type: ElementType.CONTROL,
-                value: '',
-                control: {
-                  type,
-                  value: value
-                    ? [
-                        {
-                          value
-                        }
-                      ]
-                    : null,
-                  placeholder
-                }
+            instance.command.executeInsertControl({
+              type: ElementType.CONTROL,
+              value: '',
+              control: {
+                type,
+                value: value
+                  ? [
+                      {
+                        value
+                      }
+                    ]
+                  : null,
+                placeholder
               }
-            ])
+            })
           }
         })
         break
@@ -714,19 +770,17 @@ window.onload = function () {
             const valueSets = payload.find(p => p.name === 'valueSets')?.value
             if (!valueSets) return
             const code = payload.find(p => p.name === 'code')?.value
-            instance.command.executeInsertElementList([
-              {
-                type: ElementType.CONTROL,
-                value: '',
-                control: {
-                  type,
-                  code,
-                  value: null,
-                  placeholder,
-                  valueSets: JSON.parse(valueSets)
-                }
+            instance.command.executeInsertControl({
+              type: ElementType.CONTROL,
+              value: '',
+              control: {
+                type,
+                code,
+                value: null,
+                placeholder,
+                valueSets: JSON.parse(valueSets)
               }
-            ])
+            })
           }
         })
         break
@@ -753,18 +807,156 @@ window.onload = function () {
             const valueSets = payload.find(p => p.name === 'valueSets')?.value
             if (!valueSets) return
             const code = payload.find(p => p.name === 'code')?.value
-            instance.command.executeInsertElementList([
-              {
-                type: ElementType.CONTROL,
-                value: '',
-                control: {
-                  type,
-                  code,
-                  value: null,
-                  valueSets: JSON.parse(valueSets)
-                }
+            instance.command.executeInsertControl({
+              type: ElementType.CONTROL,
+              value: '',
+              control: {
+                type,
+                code,
+                value: null,
+                valueSets: JSON.parse(valueSets)
               }
-            ])
+            })
+          }
+        })
+        break
+      case ControlType.RADIO:
+        new Dialog({
+          title: '单选框控件',
+          data: [
+            {
+              type: 'text',
+              label: '默认值',
+              name: 'code',
+              placeholder: '请输入默认值'
+            },
+            {
+              type: 'textarea',
+              label: '值集',
+              name: 'valueSets',
+              required: true,
+              height: 100,
+              placeholder: `请输入值集JSON，例：\n[{\n"value":"有",\n"code":"98175"\n}]`
+            }
+          ],
+          onConfirm: payload => {
+            const valueSets = payload.find(p => p.name === 'valueSets')?.value
+            if (!valueSets) return
+            const code = payload.find(p => p.name === 'code')?.value
+            instance.command.executeInsertControl({
+              type: ElementType.CONTROL,
+              value: '',
+              control: {
+                type,
+                code,
+                value: null,
+                valueSets: JSON.parse(valueSets)
+              }
+            })
+          }
+        })
+        break
+      case ControlType.DATE:
+        new Dialog({
+          title: '日期控件',
+          data: [
+            {
+              type: 'text',
+              label: '占位符',
+              name: 'placeholder',
+              required: true,
+              placeholder: '请输入占位符'
+            },
+            {
+              type: 'text',
+              label: '默认值',
+              name: 'value',
+              placeholder: '请输入默认值'
+            },
+            {
+              type: 'select',
+              label: '日期格式',
+              name: 'dateFormat',
+              value: 'yyyy-MM-dd hh:mm:ss',
+              required: true,
+              options: [
+                {
+                  label: 'yyyy-MM-dd hh:mm:ss',
+                  value: 'yyyy-MM-dd hh:mm:ss'
+                },
+                {
+                  label: 'yyyy-MM-dd',
+                  value: 'yyyy-MM-dd'
+                }
+              ]
+            }
+          ],
+          onConfirm: payload => {
+            const placeholder = payload.find(
+              p => p.name === 'placeholder'
+            )?.value
+            if (!placeholder) return
+            const value = payload.find(p => p.name === 'value')?.value || ''
+            const dateFormat =
+              payload.find(p => p.name === 'dateFormat')?.value || ''
+            instance.command.executeInsertControl({
+              type: ElementType.CONTROL,
+              value: '',
+              control: {
+                type,
+                dateFormat,
+                value: value
+                  ? [
+                      {
+                        value
+                      }
+                    ]
+                  : null,
+                placeholder
+              }
+            })
+          }
+        })
+        break
+      case ControlType.NUMBER:
+        new Dialog({
+          title: '数值控件',
+          data: [
+            {
+              type: 'text',
+              label: '占位符',
+              name: 'placeholder',
+              required: true,
+              placeholder: '请输入占位符'
+            },
+            {
+              type: 'text',
+              label: '默认值',
+              name: 'value',
+              placeholder: '请输入默认值'
+            }
+          ],
+          onConfirm: payload => {
+            const placeholder = payload.find(
+              p => p.name === 'placeholder'
+            )?.value
+            if (!placeholder) return
+            const value = payload.find(p => p.name === 'value')?.value || ''
+            instance.command.executeInsertControl({
+              type: ElementType.CONTROL,
+              value: '',
+              control: {
+                type,
+                value: value
+                  ? [
+                      {
+                        value
+                      }
+                    ]
+                  : null,
+                placeholder
+              }
+            })
           }
         })
         break
@@ -781,6 +973,20 @@ window.onload = function () {
     instance.command.executeInsertElementList([
       {
         type: ElementType.CHECKBOX,
+        checkbox: {
+          value: false
+        },
+        value: ''
+      }
+    ])
+  }
+
+  const radioDom = document.querySelector<HTMLDivElement>('.menu-item__radio')!
+  radioDom.onclick = function () {
+    console.log('radio')
+    instance.command.executeInsertElementList([
+      {
+        type: ElementType.RADIO,
         checkbox: {
           value: false
         },
@@ -900,32 +1106,43 @@ window.onload = function () {
           placeholder: '请输入高度'
         },
         {
-          type: 'textarea',
+          type: 'input',
           label: '地址',
-          height: 100,
-          name: 'value',
-          required: true,
+          name: 'src',
+          required: false,
           placeholder: '请输入地址'
+        },
+        {
+          type: 'textarea',
+          label: 'HTML',
+          height: 100,
+          name: 'srcdoc',
+          required: false,
+          placeholder: '请输入HTML代码（仅网址类型有效）'
         }
       ],
       onConfirm: payload => {
         const type = payload.find(p => p.name === 'type')?.value
         if (!type) return
-        const value = payload.find(p => p.name === 'value')?.value
-        if (!value) return
         const width = payload.find(p => p.name === 'width')?.value
         const height = payload.find(p => p.name === 'height')?.value
         if (!height) return
+        // 地址或HTML代码至少存在一项
+        const src = payload.find(p => p.name === 'src')?.value
+        const srcdoc = payload.find(p => p.name === 'srcdoc')?.value
         const block: IBlock = {
           type: <BlockType>type
         }
         if (block.type === BlockType.IFRAME) {
+          if (!src && !srcdoc) return
           block.iframeBlock = {
-            src: value
+            src,
+            srcdoc
           }
         } else if (block.type === BlockType.VIDEO) {
+          if (!src) return
           block.videoBlock = {
-            src: value
+            src
           }
         }
         const blockElement: IElement = {
@@ -1024,7 +1241,33 @@ window.onload = function () {
     instance.command.executePrint()
   }
 
-  // 6. 目录显隐 | 页面模式 | 纸张缩放 | 纸张大小 | 纸张方向 | 页边距 | 全屏
+  // 6. 目录显隐 | 页面模式 | 纸张缩放 | 纸张大小 | 纸张方向 | 页边距 | 全屏 | 设置
+  const editorOptionDom =
+    document.querySelector<HTMLDivElement>('.editor-option')!
+  editorOptionDom.onclick = function () {
+    const options = instance.command.getOptions()
+    new Dialog({
+      title: '编辑器配置',
+      data: [
+        {
+          type: 'textarea',
+          name: 'option',
+          width: 350,
+          height: 300,
+          required: true,
+          value: JSON.stringify(options, null, 2),
+          placeholder: '请输入编辑器配置'
+        }
+      ],
+      onConfirm: payload => {
+        const newOptionValue = payload.find(p => p.name === 'option')?.value
+        if (!newOptionValue) return
+        const newOption = JSON.parse(newOptionValue)
+        instance.command.executeUpdateOptions(newOption)
+      }
+    })
+  }
+
   async function updateCatalog() {
     const catalog = await instance.command.getCatalog()
     const catalogMainDom =
@@ -1250,6 +1493,10 @@ window.onload = function () {
     {
       mode: EditorMode.PRINT,
       name: '打印模式'
+    },
+    {
+      mode: EditorMode.DESIGN,
+      name: '设计模式'
     }
   ]
   const modeElement = document.querySelector<HTMLDivElement>('.editor-mode')!
@@ -1411,12 +1658,15 @@ window.onload = function () {
     centerDom.classList.remove('active')
     rightDom.classList.remove('active')
     alignmentDom.classList.remove('active')
+    justifyDom.classList.remove('active')
     if (payload.rowFlex && payload.rowFlex === 'right') {
       rightDom.classList.add('active')
     } else if (payload.rowFlex && payload.rowFlex === 'center') {
       centerDom.classList.add('active')
     } else if (payload.rowFlex && payload.rowFlex === 'alignment') {
       alignmentDom.classList.add('active')
+    } else if (payload.rowFlex && payload.rowFlex === 'justify') {
+      justifyDom.classList.add('active')
     } else {
       leftDom.classList.add('active')
     }
@@ -1521,14 +1771,15 @@ window.onload = function () {
       'table',
       'hyperlink',
       'separator',
-      'page-break'
+      'page-break',
+      'control'
     ]
     // 菜单操作权限
     disableMenusInControlContext.forEach(menu => {
       const menuDom = document.querySelector<HTMLDivElement>(
         `.menu-item__${menu}`
       )!
-      payload
+      payload.state === ControlState.ACTIVE
         ? menuDom.classList.add('disable')
         : menuDom.classList.remove('disable')
     })

@@ -22,8 +22,10 @@
     "richtext",
     "rowmargin",
     "rowspan",
+    "srcdoc",
     "TEXTLIKE",
     "trlist",
+    "updown",
     "vite",
     "vitepress",
     "Yahei"

@@ -1,5 +1,7 @@
 import { Command } from '../../core/command/Command'
 import { EditorZone } from '../../dataset/enum/Editor'
+import { DeepRequired } from '../Common'
+import { IEditorOption } from '../Editor'
 import { IElement } from '../Element'
 
 export interface IContextMenuContext {
@@ -11,6 +13,10 @@ export interface IContextMenuContext {
   isInTable: boolean
   isCrossRowCol: boolean
   zone: EditorZone
+  trIndex: number | null
+  tdIndex: number | null
+  tableElement: IElement | null
+  options: DeepRequired<IEditorOption>
 }
 
 export interface IRegisterContextMenu {

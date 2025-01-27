@@ -46,8 +46,16 @@ export class HistoryManager {
     return !!this.redoStack.length
   }
 
+  public isStackEmpty(): boolean {
+    return !this.undoStack.length && !this.redoStack.length
+  }
+
   public recovery() {
     this.undoStack = []
     this.redoStack = []
+  }
+
+  public popUndo() {
+    return this.undoStack.pop()
   }
 }

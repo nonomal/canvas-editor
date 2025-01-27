@@ -1,4 +1,4 @@
-import { ElementType, RowFlex, VerticalAlign } from '../..'
+import { ElementType, ListStyle, RowFlex, VerticalAlign } from '../..'
 import { ZERO } from '../../dataset/constant/Common'
 import { ControlComponent } from '../../dataset/enum/Control'
 import {
@@ -6,7 +6,8 @@ import {
   IComputePageRowPositionResult,
   IComputeRowPositionPayload,
   IFloatPosition,
-  IGetFloatPositionByXYPayload
+  IGetFloatPositionByXYPayload,
+  ISetSurroundPositionPayload
 } from '../../interface/Position'
 import { IEditorOption } from '../../interface/Editor'
 import { IElement, IElementPosition } from '../../interface/Element'
@@ -17,8 +18,12 @@ import {
 } from '../../interface/Position'
 import { Draw } from '../draw/Draw'
 import { EditorMode, EditorZone } from '../../dataset/enum/Editor'
-import { deepClone } from '../../utils'
+import { deepClone, isRectIntersect } from '../../utils'
 import { ImageDisplay } from '../../dataset/enum/Common'
+import { DeepRequired } from '../../interface/Common'
+import { EventBus } from '../event/eventbus/EventBus'
+import { EventBusMap } from '../../interface/EventBus'
+import { getIsBlockElement } from '../../utils/element'
 
 export class Position {
   private cursorPosition: IElementPosition | null
@@ -27,7 +32,8 @@ export class Position {
   private floatPositionList: IFloatPosition[]
 
   private draw: Draw
-  private options: Required<IEditorOption>
+  private eventBus: EventBus<EventBusMap>
+  private options: DeepRequired<IEditorOption>
 
   constructor(draw: Draw) {
     this.positionList = []
@@ -39,6 +45,7 @@ export class Position {
     }
 
     this.draw = draw
+    this.eventBus = draw.getEventBus()
     this.options = draw.getOptions()
   }
 
@@ -96,6 +103,10 @@ export class Position {
     this.positionList = payload
   }
 
+  public setFloatPositionList(payload: IFloatPosition[]) {
+    this.floatPositionList = payload
+  }
+
   public computePageRowPosition(
     payload: IComputePageRowPositionPayload
   ): IComputePageRowPositionResult {
@@ -107,22 +118,31 @@ export class Position {
       startY,
       startRowIndex,
       startIndex,
-      innerWidth
+      innerWidth,
+      zone
     } = payload
-    const { scale, tdPadding } = this.options
+    const {
+      scale,
+      table: { tdPadding }
+    } = this.options
     let x = startX
     let y = startY
     let index = startIndex
     for (let i = 0; i < rowList.length; i++) {
       const curRow = rowList[i]
-      // 计算行偏移量（行居中、居右）
-      if (curRow.rowFlex === RowFlex.CENTER) {
-        x += (innerWidth - curRow.width) / 2
-      } else if (curRow.rowFlex === RowFlex.RIGHT) {
-        x += innerWidth - curRow.width
+      // 行存在环绕的可能性均不设置行布局
+      if (!curRow.isSurround) {
+        // 计算行偏移量（行居中、居右）
+        const curRowWidth = curRow.width + (curRow.offsetX || 0)
+        if (curRow.rowFlex === RowFlex.CENTER) {
+          x += (innerWidth - curRowWidth) / 2
+        } else if (curRow.rowFlex === RowFlex.RIGHT) {
+          x += innerWidth - curRowWidth
+        }
       }
-      // 当前行X轴偏移量
+      // 当前行X/Y轴偏移量
       x += curRow.offsetX || 0
+      y += curRow.offsetY || 0
       // 当前td所在位置
       const tablePreX = x
       const tablePreY = y
@@ -160,6 +180,7 @@ export class Position {
         }
         // 缓存浮动元素信息
         if (
+          element.imgDisplay === ImageDisplay.SURROUND ||
           element.imgDisplay === ImageDisplay.FLOAT_TOP ||
           element.imgDisplay === ImageDisplay.FLOAT_BOTTOM
         ) {
@@ -169,6 +190,14 @@ export class Position {
             positionItem.metrics = prePosition.metrics
             positionItem.coordinate = prePosition.coordinate
           }
+          // 兼容浮动元素初始坐标为空的情况-默认使用左上坐标
+          if (!element.imgFloatPosition) {
+            element.imgFloatPosition = {
+              x,
+              y,
+              pageNo
+            }
+          }
           this.floatPositionList.push({
             pageNo,
             element,
@@ -177,7 +206,8 @@ export class Position {
             index: payload.index,
             tdIndex: payload.tdIndex,
             trIndex: payload.trIndex,
-            tdValueIndex: index
+            tdValueIndex: index,
+            zone
           })
         }
         positionList.push(positionItem)
@@ -205,7 +235,8 @@ export class Position {
                 isTable: true,
                 index: index - 1,
                 tdIndex: d,
-                trIndex: t
+                trIndex: t,
+                zone
               })
               // 垂直对齐方式
               if (
@@ -252,7 +283,6 @@ export class Position {
   public computePositionList() {
     // 置空原位置信息
     this.positionList = []
-    this.floatPositionList = []
     // 按每页行计算
     const innerWidth = this.draw.getInnerWidth()
     const pageRowList = this.draw.getPageRowList()
@@ -311,6 +341,10 @@ export class Position {
   }
 
   public setPositionContext(payload: IPositionContext) {
+    this.eventBus.emit('positionContextChange', {
+      value: payload,
+      oldValue: this.positionContext
+    })
     this.positionContext = payload
   }
 
@@ -331,7 +365,7 @@ export class Position {
     if (!isTable) {
       const floatTopPosition = this.getFloatPositionByXY({
         ...payload,
-        imgDisplay: ImageDisplay.FLOAT_TOP
+        imgDisplays: [ImageDisplay.FLOAT_TOP, ImageDisplay.SURROUND]
       })
       if (floatTopPosition) return floatTopPosition
     }
@@ -345,6 +379,7 @@ export class Position {
         coordinate: { leftTop, rightTop, leftBottom }
       } = positionList[j]
       if (positionNo !== pageNo) continue
+      if (pageNo > positionNo) break
       // 命中元素
       if (
         leftTop[0] - left <= x &&
@@ -364,6 +399,7 @@ export class Position {
                 x,
                 y,
                 td,
+                pageNo: curPageNo,
                 tablePosition: positionList[j],
                 isTable: true,
                 elementList: td.value,
@@ -375,9 +411,13 @@ export class Position {
                 return {
                   index,
                   isCheckbox:
+                    tablePosition.isCheckbox ||
                     tdValueElement.type === ElementType.CHECKBOX ||
                     tdValueElement.controlComponent ===
                       ControlComponent.CHECKBOX,
+                  isRadio:
+                    tdValueElement.type === ElementType.RADIO ||
+                    tdValueElement.controlComponent === ControlComponent.RADIO,
                   isControl: !!tdValueElement.controlId,
                   isImage: tablePosition.isImage,
                   isDirectHit: tablePosition.isDirectHit,
@@ -415,6 +455,16 @@ export class Position {
             isCheckbox: true
           }
         }
+        if (
+          element.type === ElementType.RADIO ||
+          element.controlComponent === ControlComponent.RADIO
+        ) {
+          return {
+            index: curPositionIndex,
+            isDirectHit: true,
+            isRadio: true
+          }
+        }
         let hitLineStartIndex: number | undefined
         // 判断是否在文字中间前后
         if (elementList[index].value !== ZERO) {
@@ -427,6 +477,7 @@ export class Position {
           }
         }
         return {
+          isDirectHit: true,
           hitLineStartIndex,
           index: curPositionIndex,
           isControl: !!element.controlId
@@ -437,7 +488,7 @@ export class Position {
     if (!isTable) {
       const floatBottomPosition = this.getFloatPositionByXY({
         ...payload,
-        imgDisplay: ImageDisplay.FLOAT_BOTTOM
+        imgDisplays: [ImageDisplay.FLOAT_BOTTOM]
       })
       if (floatBottomPosition) return floatBottomPosition
     }
@@ -469,20 +520,24 @@ export class Position {
     for (let j = 0; j < lastLetterList.length; j++) {
       const {
         index,
-        pageNo,
+        rowNo,
         coordinate: { leftTop, leftBottom }
       } = lastLetterList[j]
-      if (positionNo !== pageNo) continue
       if (y > leftTop[1] && y <= leftBottom[1]) {
-        const isHead = x < this.options.margins[3]
+        const headIndex = positionList.findIndex(
+          p => p.pageNo === positionNo && p.rowNo === rowNo
+        )
+        const headElement = elementList[headIndex]
+        const headPosition = positionList[headIndex]
         // 是否在头部
-        if (isHead) {
-          const headIndex = positionList.findIndex(
-            p => p.pageNo === positionNo && p.rowNo === lastLetterList[j].rowNo
-          )
+        const headStartX =
+          headElement.listStyle === ListStyle.CHECKBOX
+            ? this.options.margins[3]
+            : headPosition.coordinate.leftTop[0]
+        if (x < headStartX) {
           // 头部元素为空元素时无需选中
           if (~headIndex) {
-            if (positionList[headIndex].value === ZERO) {
+            if (headPosition.value === ZERO) {
               curPositionIndex = headIndex
             } else {
               curPositionIndex = headIndex - 1
@@ -492,6 +547,14 @@ export class Position {
             curPositionIndex = index
           }
         } else {
+          // 是否是复选框列表
+          if (headElement.listStyle === ListStyle.CHECKBOX && x < leftTop[0]) {
+            return {
+              index: headIndex,
+              isDirectHit: true,
+              isCheckbox: true
+            }
+          }
           curPositionIndex = index
         }
         isLastArea = true
@@ -501,7 +564,8 @@ export class Position {
     if (!isLastArea) {
       // 页眉底部距离页面顶部距离
       const header = this.draw.getHeader()
-      const headerBottomY = header.getHeaderTop() + header.getHeight()
+      const headerHeight = header.getHeight()
+      const headerBottomY = header.getHeaderTop() + headerHeight
       // 页脚上部距离页面顶部距离
       const footer = this.draw.getFooter()
       const pageHeight = this.draw.getHeight()
@@ -532,6 +596,51 @@ export class Position {
           }
         }
       }
+      // 正文上-循环首行
+      const margins = this.draw.getMargins()
+      if (y <= margins[0]) {
+        for (let p = 0; p < positionList.length; p++) {
+          const position = positionList[p]
+          if (position.pageNo !== positionNo || position.rowNo !== 0) continue
+          const { leftTop, rightTop } = position.coordinate
+          // 小于左页边距 || 命中文字 || 首行最后元素
+          if (
+            x <= margins[3] ||
+            (x >= leftTop[0] && x <= rightTop[0]) ||
+            positionList[p + 1]?.rowNo !== 0
+          ) {
+            return {
+              index: position.index
+            }
+          }
+        }
+      } else {
+        // 正文下-循环尾行
+        const lastLetter = lastLetterList[lastLetterList.length - 1]
+        if (lastLetter) {
+          const lastRowNo = lastLetter.rowNo
+          for (let p = 0; p < positionList.length; p++) {
+            const position = positionList[p]
+            if (
+              position.pageNo !== positionNo ||
+              position.rowNo !== lastRowNo
+            ) {
+              continue
+            }
+            const { leftTop, rightTop } = position.coordinate
+            // 小于左页边距 || 命中文字 || 尾行最后元素
+            if (
+              x <= margins[3] ||
+              (x >= leftTop[0] && x <= rightTop[0]) ||
+              positionList[p + 1]?.rowNo !== lastRowNo
+            ) {
+              return {
+                index: position.index
+              }
+            }
+          }
+        }
+      }
       // 当前页最后一行
       return {
         index:
@@ -550,6 +659,8 @@ export class Position {
     payload: IGetFloatPositionByXYPayload
   ): ICurrentPosition | void {
     const { x, y } = payload
+    const currentPageNo = payload.pageNo ?? this.draw.getPageNo()
+    const currentZone = this.draw.getZone().getZone()
     for (let f = 0; f < this.floatPositionList.length; f++) {
       const {
         position,
@@ -558,11 +669,16 @@ export class Position {
         index,
         trIndex,
         tdIndex,
-        tdValueIndex
+        tdValueIndex,
+        zone: floatElementZone,
+        pageNo
       } = this.floatPositionList[f]
       if (
+        currentPageNo === pageNo &&
         element.type === ElementType.IMAGE &&
-        element.imgDisplay === payload.imgDisplay
+        element.imgDisplay &&
+        payload.imgDisplays.includes(element.imgDisplay) &&
+        (!floatElementZone || floatElementZone === currentZone)
       ) {
         const imgFloatPosition = element.imgFloatPosition!
         if (
@@ -623,7 +739,10 @@ export class Position {
     const {
       index,
       isCheckbox,
+      isRadio,
       isControl,
+      isImage,
+      isDirectHit,
       isTable,
       trIndex,
       tdIndex,
@@ -635,7 +754,10 @@ export class Position {
     this.setPositionContext({
       isTable: isTable || false,
       isCheckbox: isCheckbox || false,
+      isRadio: isRadio || false,
       isControl: isControl || false,
+      isImage: isImage || false,
+      isDirectHit: isDirectHit || false,
       index,
       trIndex,
       tdIndex,
@@ -644,5 +766,53 @@ export class Position {
       tableId
     })
     return positionResult
+  }
+
+  public setSurroundPosition(payload: ISetSurroundPositionPayload) {
+    const {
+      pageNo,
+      row,
+      rowElement,
+      rowElementRect,
+      surroundElementList,
+      availableWidth
+    } = payload
+    let x = rowElementRect.x
+    let rowIncreaseWidth = 0
+    if (
+      surroundElementList.length &&
+      !getIsBlockElement(rowElement) &&
+      !rowElement.control?.minWidth
+    ) {
+      for (let s = 0; s < surroundElementList.length; s++) {
+        const surroundElement = surroundElementList[s]
+        const floatPosition = surroundElement.imgFloatPosition!
+        if (floatPosition.pageNo !== pageNo) continue
+        const surroundRect = {
+          ...floatPosition,
+          width: surroundElement.width!,
+          height: surroundElement.height!
+        }
+        if (isRectIntersect(rowElementRect, surroundRect)) {
+          row.isSurround = true
+          // 需向左移动距离：浮动元素宽度 + 浮动元素左上坐标 - 元素左上坐标
+          const translateX =
+            surroundRect.width + surroundRect.x - rowElementRect.x
+          rowElement.left = translateX
+          // 增加行宽
+          row.width += translateX
+          rowIncreaseWidth += translateX
+          // 下个元素起始位置：浮动元素右坐标 - 元素宽度
+          x = surroundRect.x + surroundRect.width
+          // 检测宽度是否足够，不够则移动到下一行，并还原状态
+          if (row.width + rowElement.metrics.width > availableWidth) {
+            rowElement.left = 0
+            row.width -= rowIncreaseWidth
+            break
+          }
+        }
+      }
+    }
+    return { x, rowIncreaseWidth }
   }
 }

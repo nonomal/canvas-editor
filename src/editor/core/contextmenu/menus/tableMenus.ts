@@ -1,4 +1,5 @@
 import { INTERNAL_CONTEXT_MENU_KEY } from '../../../dataset/constant/ContextMenu'
+import { EditorMode } from '../../../dataset/enum/Editor'
 import { VerticalAlign } from '../../../dataset/enum/VerticalAlign'
 import {
   TableBorder,
@@ -12,7 +13,9 @@ const {
     BORDER,
     BORDER_ALL,
     BORDER_EMPTY,
+    BORDER_DASH,
     BORDER_EXTERNAL,
+    BORDER_INTERNAL,
     BORDER_TD,
     BORDER_TD_TOP,
     BORDER_TD_LEFT,
@@ -47,7 +50,11 @@ export const tableMenus: IRegisterContextMenu[] = [
     i18nPath: 'contextmenu.table.border',
     icon: 'border-all',
     when: payload => {
-      return !payload.isReadonly && payload.isInTable
+      return (
+        !payload.isReadonly &&
+        payload.isInTable &&
+        payload.options.mode !== EditorMode.FORM
+      )
     },
     childMenus: [
       {
@@ -69,12 +76,30 @@ export const tableMenus: IRegisterContextMenu[] = [
         }
       },
       {
+        key: BORDER_DASH,
+        i18nPath: 'contextmenu.table.borderDash',
+        icon: 'border-dash',
+        when: () => true,
+        callback: (command: Command) => {
+          command.executeTableBorderType(TableBorder.DASH)
+        }
+      },
+      {
         key: BORDER_EXTERNAL,
         i18nPath: 'contextmenu.table.borderExternal',
         icon: 'border-external',
         when: () => true,
         callback: (command: Command) => {
           command.executeTableBorderType(TableBorder.EXTERNAL)
+        }
+      },
+      {
+        key: BORDER_INTERNAL,
+        i18nPath: 'contextmenu.table.borderInternal',
+        icon: 'border-internal',
+        when: () => true,
+        callback: (command: Command) => {
+          command.executeTableBorderType(TableBorder.INTERNAL)
         }
       },
       {
@@ -146,7 +171,11 @@ export const tableMenus: IRegisterContextMenu[] = [
     i18nPath: 'contextmenu.table.verticalAlign',
     icon: 'vertical-align',
     when: payload => {
-      return !payload.isReadonly && payload.isInTable
+      return (
+        !payload.isReadonly &&
+        payload.isInTable &&
+        payload.options.mode !== EditorMode.FORM
+      )
     },
     childMenus: [
       {
@@ -183,7 +212,11 @@ export const tableMenus: IRegisterContextMenu[] = [
     i18nPath: 'contextmenu.table.insertRowCol',
     icon: 'insert-row-col',
     when: payload => {
-      return !payload.isReadonly && payload.isInTable
+      return (
+        !payload.isReadonly &&
+        payload.isInTable &&
+        payload.options.mode !== EditorMode.FORM
+      )
     },
     childMenus: [
       {
@@ -229,7 +262,11 @@ export const tableMenus: IRegisterContextMenu[] = [
     i18nPath: 'contextmenu.table.deleteRowCol',
     icon: 'delete-row-col',
     when: payload => {
-      return !payload.isReadonly && payload.isInTable
+      return (
+        !payload.isReadonly &&
+        payload.isInTable &&
+        payload.options.mode !== EditorMode.FORM
+      )
     },
     childMenus: [
       {
@@ -266,7 +303,11 @@ export const tableMenus: IRegisterContextMenu[] = [
     i18nPath: 'contextmenu.table.mergeCell',
     icon: 'merge-cell',
     when: payload => {
-      return !payload.isReadonly && payload.isCrossRowCol
+      return (
+        !payload.isReadonly &&
+        payload.isCrossRowCol &&
+        payload.options.mode !== EditorMode.FORM
+      )
     },
     callback: (command: Command) => {
       command.executeMergeTableCell()
@@ -277,7 +318,11 @@ export const tableMenus: IRegisterContextMenu[] = [
     i18nPath: 'contextmenu.table.mergeCancelCell',
     icon: 'merge-cancel-cell',
     when: payload => {
-      return !payload.isReadonly && payload.isInTable
+      return (
+        !payload.isReadonly &&
+        payload.isInTable &&
+        payload.options.mode !== EditorMode.FORM
+      )
     },
     callback: (command: Command) => {
       command.executeCancelMergeTableCell()

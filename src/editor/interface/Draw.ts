@@ -11,6 +11,7 @@ export interface IDrawOption {
   isLazy?: boolean
   isInit?: boolean
   isSourceHistory?: boolean
+  isFirstRender?: boolean
 }
 
 export interface IForceUpdateOption {
@@ -21,6 +22,7 @@ export interface IDrawImagePayload {
   width: number
   height: number
   value: string
+  imgDisplay?: ImageDisplay
 }
 
 export interface IDrawRowPayload {
@@ -31,11 +33,12 @@ export interface IDrawRowPayload {
   startIndex: number
   innerWidth: number
   zone?: EditorZone
+  isDrawLineBreak?: boolean
 }
 
 export interface IDrawFloatPayload {
   pageNo: number
-  imgDisplay: ImageDisplay
+  imgDisplays: ImageDisplay[]
 }
 
 export interface IDrawPagePayload {
@@ -51,6 +54,7 @@ export interface IPainterOption {
 
 export interface IGetValueOption {
   pageNo?: number
+  extraPickAttrs?: Array<keyof IElement>
 }
 
 export interface IAppendElementListOption {
@@ -60,4 +64,16 @@ export interface IAppendElementListOption {
 export interface IGetImageOption {
   pixelRatio?: number
   mode?: EditorMode
+}
+
+export interface IComputeRowListPayload {
+  innerWidth: number
+  elementList: IElement[]
+  startX?: number
+  startY?: number
+  isFromTable?: boolean
+  isPagingMode?: boolean
+  pageHeight?: number
+  mainOuterHeight?: number
+  surroundElementList?: IElement[]
 }

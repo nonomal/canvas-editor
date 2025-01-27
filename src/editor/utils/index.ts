@@ -1,8 +1,12 @@
 import { UNICODE_SYMBOL_REG } from '../dataset/constant/Regular'
+import { IElementFillRect } from '../interface/Element'
 
-export function debounce(func: Function, delay: number) {
+export function debounce<T extends unknown[]>(
+  func: (...arg: T) => unknown,
+  delay: number
+) {
   let timer: number
-  return function (this: any, ...args: any[]) {
+  return function (this: unknown, ...args: T) {
     if (timer) {
       window.clearTimeout(timer)
     }
@@ -12,10 +16,13 @@ export function debounce(func: Function, delay: number) {
   }
 }
 
-export function throttle(func: Function, delay: number) {
+export function throttle<T extends unknown[]>(
+  func: (...arg: T) => unknown,
+  delay: number
+) {
   let lastExecTime = 0
   let timer: number
-  return function (this: any, ...args: any[]) {
+  return function (this: unknown, ...args: T) {
     const currentTime = Date.now()
     if (currentTime - lastExecTime >= delay) {
       window.clearTimeout(timer)
@@ -107,19 +114,27 @@ export function getUUID(): string {
 
 export function splitText(text: string): string[] {
   const data: string[] = []
-  const symbolMap = new Map<number, string>()
-  for (const match of text.matchAll(UNICODE_SYMBOL_REG)) {
-    symbolMap.set(match.index!, match[0])
-  }
-  let t = 0
-  while (t < text.length) {
-    const symbol = symbolMap.get(t)
-    if (symbol) {
-      data.push(symbol)
-      t += symbol.length
-    } else {
-      data.push(text[t])
-      t++
+  if (Intl.Segmenter) {
+    const segmenter = new Intl.Segmenter()
+    const segments = segmenter.segment(text)
+    for (const { segment } of segments) {
+      data.push(segment)
+    }
+  } else {
+    const symbolMap = new Map<number, string>()
+    for (const match of text.matchAll(UNICODE_SYMBOL_REG)) {
+      symbolMap.set(match.index!, match[0])
+    }
+    let t = 0
+    while (t < text.length) {
+      const symbol = symbolMap.get(t)
+      if (symbol) {
+        data.push(symbol)
+        t += symbol.length
+      } else {
+        data.push(text[t])
+        t++
+      }
     }
   }
   return data
@@ -163,6 +178,10 @@ export function isObject(type: unknown): type is Record<string, unknown> {
 
 export function isArray(type: unknown): type is Array<unknown> {
   return Array.isArray(type)
+}
+
+export function isNumber(type: unknown): type is Array<unknown> {
+  return Object.prototype.toString.call(type) === '[object Number]'
 }
 
 export function mergeObject<T>(source: T, target: T): T {
@@ -311,4 +330,35 @@ export function isObjectEqual(obj1: unknown, obj2: unknown): boolean {
     return false
   }
   return !obj1Keys.some(key => obj2[key] !== obj1[key])
+}
+
+export function isRectIntersect(
+  rect1: IElementFillRect,
+  rect2: IElementFillRect
+): boolean {
+  const rect1Left = rect1.x
+  const rect1Right = rect1.x + rect1.width
+  const rect1Top = rect1.y
+  const rect1Bottom = rect1.y + rect1.height
+  const rect2Left = rect2.x
+  const rect2Right = rect2.x + rect2.width
+  const rect2Top = rect2.y
+  const rect2Bottom = rect2.y + rect2.height
+  if (
+    rect1Left > rect2Right ||
+    rect1Right < rect2Left ||
+    rect1Top > rect2Bottom ||
+    rect1Bottom < rect2Top
+  ) {
+    return false
+  }
+  return true
+}
+
+export function isNonValue(value: unknown): boolean {
+  return value === undefined || value === null
+}
+
+export function normalizeLineBreak(text: string): string {
+  return text.replace(/\r\n|\r/g, '\n')
 }

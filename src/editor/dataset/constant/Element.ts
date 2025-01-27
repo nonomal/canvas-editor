@@ -1,6 +1,7 @@
 import { ElementType } from '../enum/Element'
 import { IElement } from '../../interface/Element'
 import { ITd } from '../../interface/table/Td'
+import { IControlStyle } from '../../interface/Control'
 
 export const EDITOR_ELEMENT_STYLE_ATTR: Array<keyof IElement> = [
   'bold',
@@ -28,11 +29,11 @@ export const EDITOR_ELEMENT_COPY_ATTR: Array<keyof IElement> = [
   'strikeout',
   'rowFlex',
   'url',
+  'areaId',
   'hyperlinkId',
   'dateId',
   'dateFormat',
   'groupIds',
-  'rowFlex',
   'rowMargin',
   'textDecoration'
 ]
@@ -52,6 +53,7 @@ export const EDITOR_ELEMENT_ZIP_ATTR: Array<keyof IElement> = [
   'dashArray',
   'trList',
   'borderType',
+  'borderColor',
   'width',
   'height',
   'url',
@@ -59,9 +61,11 @@ export const EDITOR_ELEMENT_ZIP_ATTR: Array<keyof IElement> = [
   'valueList',
   'control',
   'checkbox',
+  'radio',
   'dateFormat',
   'block',
   'level',
+  'title',
   'listType',
   'listStyle',
   'listWrap',
@@ -69,10 +73,17 @@ export const EDITOR_ELEMENT_ZIP_ATTR: Array<keyof IElement> = [
   'conceptId',
   'imgDisplay',
   'imgFloatPosition',
-  'textDecoration'
+  'textDecoration',
+  'extension',
+  'externalId',
+  'areaId',
+  'area'
 ]
 
 export const TABLE_TD_ZIP_ATTR: Array<keyof ITd> = [
+  'conceptId',
+  'extension',
+  'externalId',
   'verticalAlign',
   'backgroundColor',
   'borderTypes',
@@ -85,7 +96,11 @@ export const TABLE_CONTEXT_ATTR: Array<keyof IElement> = [
   'tableId'
 ]
 
-export const TITLE_CONTEXT_ATTR: Array<keyof IElement> = ['level', 'titleId']
+export const TITLE_CONTEXT_ATTR: Array<keyof IElement> = [
+  'level',
+  'titleId',
+  'title'
+]
 
 export const LIST_CONTEXT_ATTR: Array<keyof IElement> = [
   'listId',
@@ -99,10 +114,22 @@ export const CONTROL_CONTEXT_ATTR: Array<keyof IElement> = [
   'controlComponent'
 ]
 
+export const CONTROL_STYLE_ATTR: Array<keyof IControlStyle> = [
+  'font',
+  'size',
+  'bold',
+  'highlight',
+  'italic',
+  'strikeout'
+]
+
+export const AREA_CONTEXT_ATTR: Array<keyof IElement> = ['areaId', 'area']
+
 export const EDITOR_ELEMENT_CONTEXT_ATTR: Array<keyof IElement> = [
   ...TABLE_CONTEXT_ATTR,
   ...TITLE_CONTEXT_ATTR,
-  ...LIST_CONTEXT_ATTR
+  ...LIST_CONTEXT_ATTR,
+  ...AREA_CONTEXT_ATTR
 ]
 
 export const TEXTLIKE_ELEMENT_TYPE: ElementType[] = [
@@ -114,7 +141,12 @@ export const TEXTLIKE_ELEMENT_TYPE: ElementType[] = [
   ElementType.DATE
 ]
 
-export const INLINE_ELEMENT_TYPE: ElementType[] = [
+export const IMAGE_ELEMENT_TYPE: ElementType[] = [
+  ElementType.IMAGE,
+  ElementType.LATEX
+]
+
+export const BLOCK_ELEMENT_TYPE: ElementType[] = [
   ElementType.BLOCK,
   ElementType.PAGE_BREAK,
   ElementType.SEPARATOR,

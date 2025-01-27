@@ -12,6 +12,17 @@ export enum NumberType {
 export enum ImageDisplay {
   INLINE = 'inline',
   BLOCK = 'block',
+  SURROUND = 'surround',
   FLOAT_TOP = 'float-top',
   FLOAT_BOTTOM = 'float-bottom'
+}
+
+export enum LocationPosition {
+  BEFORE = 'before',
+  AFTER = 'after'
+}
+
+export enum FlexDirection {
+  ROW = 'row',
+  COLUMN = 'column'
 }

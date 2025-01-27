@@ -4,7 +4,10 @@ import { IElement, IElementPosition } from '../Element'
 import { IRow } from '../Row'
 
 export interface ITd {
+  conceptId?: string
   id?: string
+  extension?: unknown
+  externalId?: string
   x?: number
   y?: number
   width?: number
@@ -12,6 +15,8 @@ export interface ITd {
   colspan: number
   rowspan: number
   value: IElement[]
+  trIndex?: number
+  tdIndex?: number
   isLastRowTd?: boolean
   isLastColTd?: boolean
   isLastTd?: boolean
@@ -26,4 +31,6 @@ export interface ITd {
   mainHeight?: number // 内容 + 内边距高度
   realHeight?: number // 真实高度（包含跨列）
   realMinHeight?: number // 真实最小高度（包含跨列）
+  disabled?: boolean // 内容不可编辑
+  deletable?: boolean // 内容不可删除
 }

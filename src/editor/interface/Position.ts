@@ -1,7 +1,7 @@
-import { IElement, ImageDisplay } from '..'
+import { IElement, ImageDisplay, IRange } from '..'
 import { EditorZone } from '../dataset/enum/Editor'
-import { IElementPosition } from './Element'
-import { IRow } from './Row'
+import { IElementFillRect, IElementPosition } from './Element'
+import { IRow, IRowElement } from './Row'
 import { ITd } from './table/Td'
 
 export interface ICurrentPosition {
@@ -9,6 +9,7 @@ export interface ICurrentPosition {
   x?: number
   y?: number
   isCheckbox?: boolean
+  isRadio?: boolean
   isControl?: boolean
   isImage?: boolean
   isTable?: boolean
@@ -35,13 +36,16 @@ export interface IGetPositionByXYPayload {
 }
 
 export type IGetFloatPositionByXYPayload = IGetPositionByXYPayload & {
-  imgDisplay: ImageDisplay
+  imgDisplays: ImageDisplay[]
 }
 
 export interface IPositionContext {
   isTable: boolean
   isCheckbox?: boolean
+  isRadio?: boolean
   isControl?: boolean
+  isImage?: boolean
+  isDirectHit?: boolean
   index?: number
   trIndex?: number
   tdIndex?: number
@@ -69,6 +73,7 @@ export interface IComputePageRowPositionPayload {
   tdIndex?: number
   trIndex?: number
   tdValueIndex?: number
+  zone?: EditorZone
 }
 
 export interface IComputePageRowPositionResult {
@@ -86,4 +91,20 @@ export interface IFloatPosition {
   tdIndex?: number
   trIndex?: number
   tdValueIndex?: number
+  zone?: EditorZone
+}
+
+export interface ILocationPosition {
+  zone: EditorZone
+  range: IRange
+  positionContext: IPositionContext
+}
+
+export interface ISetSurroundPositionPayload {
+  row: IRow
+  rowElement: IRowElement
+  rowElementRect: IElementFillRect
+  pageNo: number
+  availableWidth: number
+  surroundElementList: IElement[]
 }

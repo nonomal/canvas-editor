@@ -19,8 +19,9 @@
 - Change the picture
 - Save as picture
 - Text wrapping
-  - Embedded
-  - Upper and lower surrounding
+  - Embed
+  - Up down
+  - Surround
   - Float above text
   - Float below text
 
@@ -29,7 +30,9 @@
 - Table borders
 - All borders
 - Borderless
+- Dashed border
 - Outer border
+- Internal border
 - Td borders
   - Top border
   - Right border

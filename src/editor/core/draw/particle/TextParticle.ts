@@ -1,5 +1,8 @@
-import { ElementType, IEditorOption, IElement } from '../../..'
-import { PUNCTUATION_LIST } from '../../../dataset/constant/Common'
+import { ElementType, IEditorOption, IElement, RenderMode } from '../../..'
+import {
+  PUNCTUATION_LIST,
+  METRICS_BASIS_TEXT
+} from '../../../dataset/constant/Common'
 import { DeepRequired } from '../../../interface/Common'
 import { IRowElement } from '../../../interface/Row'
 import { ITextMetrics } from '../../../interface/Text'
@@ -31,6 +34,19 @@ export class TextParticle {
     this.text = ''
     this.curStyle = ''
     this.cacheMeasureText = new Map()
+  }
+
+  public measureBasisWord(
+    ctx: CanvasRenderingContext2D,
+    font: string
+  ): ITextMetrics {
+    ctx.save()
+    ctx.font = font
+    const textMetrics = this.measureText(ctx, {
+      value: METRICS_BASIS_TEXT
+    })
+    ctx.restore()
+    return textMetrics
   }
 
   public measureWord(
@@ -108,6 +124,15 @@ export class TextParticle {
     y: number
   ) {
     this.ctx = ctx
+    // 兼容模式立即绘制
+    if (this.options.renderMode === RenderMode.COMPATIBILITY) {
+      this._setCurXY(x, y)
+      this.text = element.value
+      this.curStyle = element.style
+      this.curColor = element.color
+      this.complete()
+      return
+    }
     // 主动完成的重设起始点
     if (!this.text) {
       this._setCurXY(x, y)

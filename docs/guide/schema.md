@@ -15,6 +15,7 @@ interface IElement {
     PAGE_BREAK = 'pageBreak',
     CONTROL = 'control',
     CHECKBOX = 'checkbox',
+    RADIO = 'radio',
     LATEX = 'latex',
     TAB = 'tab',
     DATE = 'date',
@@ -22,6 +23,8 @@ interface IElement {
   };
   value: string;
   valueList?: IElement[]; // 复合元素（超链接、标题、列表等）使用
+  extension?: unknown;
+  externalId?: string;
   // 样式
   font?: string;
   size?: number;
@@ -37,7 +40,8 @@ interface IElement {
     LEFT = 'left',
     CENTER = 'center',
     RIGHT = 'right',
-    ALIGNMENT = 'alignment'
+    ALIGNMENT = 'alignment',
+    JUSTIFY = 'justify'
   };
   rowMargin?: number;
   letterSpacing?: number;
@@ -53,17 +57,27 @@ interface IElement {
   }[];
   trList?: {
     height: number;
+    pagingRepeat?: boolean;
+    extension?: unknown;
+    externalId?: string;
     tdList: {
       colspan: number;
       rowspan: number;
+      conceptId?: string;
       verticalAlign?: VerticalAlign;
       backgroundColor?: string;
       borderTypes?: TdBorder[];
       slashTypes?: TdSlash[];
       value: IElement[];
+      extension?: unknown;
+      externalId?: string;
+      disabled?: boolean;
+      deletable?: boolean;
     }[];
   }[];
   borderType?: TableBorder;
+  borderColor?: string;
+  tableToolDisabled?: boolean;
   // 超链接
   url?: string;
   // 上下标
@@ -75,44 +89,64 @@ interface IElement {
     type: {
       TEXT = 'text',
       SELECT = 'select',
-      CHECKBOX = 'checkbox'
+      CHECKBOX = 'checkbox',
+      RADIO = 'radio'
+      DATE = 'date',
+      NUMBER = 'number'
     };
     value: IElement[] | null;
     placeholder?: string;
     conceptId?: string;
     prefix?: string;
     postfix?: string;
+    preText?: string;
+    postText?: string;
     minWidth?: number;
     underline?: boolean;
+    border?: boolean;
     extension?: unknown;
     indentation?: ControlIndentation;
+    rowFlex?: RowFlex
     deletable?: boolean;
     disabled?: boolean;
+    pasteDisabled?: boolean;
     code: string | null;
     min?: number;
     max?: number;
+    flexDirection: FlexDirection;
     valueSets: {
       value: string;
       code: string;
     }[];
-    checkbox?: {
-      value: boolean | null;
-      code?: string;
-      disabled?: boolean;
-    };
+    isMultiSelect?: boolean;
+    multiSelectDelimiter?: string;
+    dateFormat?: string;
+    font?: string;
+    size?: number;
+    bold?: boolean;
+    color?: string;
+    highlight?: string;
+    italic?: boolean;
+    strikeout?: boolean;
+    selectExclusiveOptions?: {
+      inputAble?: boolean;
+    }
   };
   controlComponent?: {
     PREFIX = 'prefix',
     POSTFIX = 'postfix',
     PLACEHOLDER = 'placeholder',
     VALUE = 'value',
-    CHECKBOX = 'checkbox'
+    CHECKBOX = 'checkbox',
+    RADIO = 'radio'
   };
   // 复选框
   checkbox?: {
     value: boolean | null;
-    code?: string;
-    disabled?: boolean;
+  };
+  // 单选框
+  radio?: {
+    value: boolean | null;
   };
   // LaTeX
   laTexSVG?: string;
@@ -123,6 +157,11 @@ interface IElement {
     INLINE = 'inline',
     BLOCK = 'block'
   }
+  imgFloatPosition?: {
+    x: number;
+    y: number;
+    pageNo?: number;
+  }
   // 内容块
   block?: {
     type: {
@@ -130,7 +169,8 @@ interface IElement {
       VIDEO = 'video'
     };
     iframeBlock?: {
-      src: string;
+      src?: string;
+      srcdoc?: string;
     };
     videoBlock?: {
       src: string;
@@ -138,9 +178,23 @@ interface IElement {
   };
   // 标题
   level?: TitleLevel;
+  title?: {
+    conceptId?: string;
+    deletable?: boolean;
+    disabled?: boolean;
+  };
   // 列表
   listType?: ListType;
   listStyle?: ListStyle;
   listWrap?: boolean;
+  // 区域
+  areaId?: string;
+  area?: {
+    extension?: unknown;
+    top?: number;
+    borderColor?: string;
+    backgroundColor?: string;
+    mode?: AreaMode;
+  };
 }
 ```

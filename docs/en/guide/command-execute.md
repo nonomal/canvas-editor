@@ -36,7 +36,7 @@ Feature: Copy
 Usage:
 
 ```javascript
-instance.command.executeCopy()
+instance.command.executeCopy(payload?: ICopyOption)
 ```
 
 ## executePaste
@@ -437,6 +437,26 @@ Usage:
 instance.command.executeCancelMergeTableCell()
 ```
 
+## executeSplitVerticalTableCell
+
+Feature: Split table cell (vertical)
+
+Usage:
+
+```javascript
+instance.command.executeSplitVerticalTableCell()
+```
+
+## executeSplitHorizontalTableCell
+
+Feature: Split table cell (horizontal)
+
+Usage:
+
+```javascript
+instance.command.executeSplitHorizontalTableCell()
+```
+
 ## executeTableTdVerticalAlign
 
 Feature: Table cell vertical alignment
@@ -455,6 +475,16 @@ Usage:
 
 ```javascript
 instance.command.executeTableBorderType(payload: TableBorder)
+```
+
+## executeTableBorderColor
+
+Feature: Table border color
+
+Usage:
+
+```javascript
+instance.command.executeTableBorderColor(payload: string)
 ```
 
 ## executeTableTdBorderType
@@ -639,7 +669,7 @@ Feature: Search for replacement
 Usage:
 
 ```javascript
-instance.command.executeReplace(newWord: string)
+instance.command.executeReplace(newWord: string, option?: IReplaceOption)
 ```
 
 ## executePrint
@@ -679,7 +709,7 @@ Feature: Change how image rows are displayed
 Usage:
 
 ```javascript
-instance.command.executeSaveAsImageElement(element: IElement, display: ImageDisplay)
+instance.command.executeChangeImageDisplay(element: IElement, display: ImageDisplay)
 ```
 
 ## executePageMode
@@ -690,6 +720,16 @@ Usage:
 
 ```javascript
 instance.command.executePageMode(pageMode: PageMode)
+```
+
+## executePageScale
+
+Feature: Set page scale
+
+Usage:
+
+```javascript
+instance.command.executePageScale(scale: number)
 ```
 
 ## executePageScaleRecovery
@@ -752,6 +792,26 @@ Usage:
 instance.command.executeSetPaperMargin([top: number, right: number, bottom: number, left: number])
 ```
 
+## executeSetMainBadge
+
+Feature: Set main badge
+
+Usage:
+
+```javascript
+instance.command.executeSetMainBadge(payload: IBadge | null)
+```
+
+## executeSetAreaBadge
+
+Feature: Set area badge
+
+Usage:
+
+```javascript
+instance.command.executeSetAreaBadge(payload: IAreaBadge[])
+```
+
 ## executeInsertElementList
 
 Feature: Insert an element
@@ -772,6 +832,16 @@ Usage:
 instance.command.executeAppendElementList(elementList: IElement[], options?: IAppendElementListOption)
 ```
 
+## executeUpdateElementById
+
+Feature: Update element by id
+
+Usage:
+
+```javascript
+instance.command.executeUpdateElementById(payload: IUpdateElementByIdOption)
+```
+
 ## executeSetValue
 
 Feature: Set the editor data
@@ -779,7 +849,7 @@ Feature: Set the editor data
 Usage:
 
 ```javascript
-instance.command.executeSetValue(payload: Partial<IEditorData>)
+instance.command.executeSetValue(payload: Partial<IEditorData>, options?: ISetValueOption)
 ```
 
 ## executeRemoveControl
@@ -789,7 +859,7 @@ Feature: Delete the control
 Usage:
 
 ```javascript
-instance.command.executeRemoveControl()
+instance.command.executeRemoveControl(payload?: IRemoveControlOption)
 ```
 
 ## executeSetLocale
@@ -910,4 +980,84 @@ Usage:
 
 ```javascript
 instance.command.executeSetControlHighlight(payload: ISetControlHighlightOption)
+```
+
+## executeLocationControl
+
+Feature: Positioning and activating control
+
+Usage:
+
+```javascript
+instance.command.executeLocationControl(controlId: string, options?: ILocationControlOption)
+```
+
+## executeInsertControl
+
+Feature: Insert control
+
+Usage:
+
+```javascript
+instance.command.executeInsertControl(payload: IElement)
+```
+
+## executeUpdateOptions
+
+Feature: Update options
+
+Usage:
+
+```javascript
+instance.command.executeUpdateOptions(payload: IUpdateOption)
+```
+
+## executeInsertTitle
+
+Feature: Insert title
+
+Usage:
+
+```javascript
+instance.command.executeInsertTitle(payload: IElement)
+```
+
+## executeFocus
+
+Feature: focus
+
+Usage:
+
+```javascript
+instance.command.executeFocus(payload?: IFocusOption)
+```
+
+## executeInsertArea
+
+Feature: insert area element
+
+Usage:
+
+```javascript
+const areaId = instance.command.executeInsertArea(payload: IInsertAreaOption)
+```
+
+## executeSetAreaProperties
+
+Feature: set area properties
+
+Usage:
+
+```javascript
+instance.command.executeSetAreaProperties(payload: ISetAreaPropertiesOption)
+```
+
+## executeLocationArea
+
+Feature: positioning area position
+
+Usage:
+
+```javascript
+instance.command.executeLocationArea(areaId: string)
 ```
